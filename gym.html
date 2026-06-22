@@ -9,516 +9,404 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="IRONLOG" />
 <title>IRONLOG</title>
-<style>html,body{margin:0;padding:0;background:#F4F7FC;}</style>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  :root{
+    --bg:#F4F7FC;--surface:#FFFFFF;--surface2:#EEF2F9;--line:#D9E2EF;
+    --text:#15243A;--muted:#5C6B82;--faint:#8A94A6;--accent:#2563EB;--on:#FFFFFF;
+    --up:#0E9F6E;--down:#E11D48;
+    --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  }
+  body{font-family:var(--sans);color:var(--text);background:var(--bg);min-height:100vh;-webkit-font-smoothing:antialiased;}
+  .app{max-width:540px;margin:0 auto;padding:0 14px calc(96px + env(safe-area-inset-bottom));}
+  .head{display:flex;align-items:center;gap:10px;padding:calc(20px + env(safe-area-inset-top)) 0 14px;}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:#fff;}
+  .logo svg{width:20px;height:20px;}
+  .brand{font-family:var(--mono);font-weight:700;font-size:17px;letter-spacing:1px;color:var(--text);}
+  .brand-sub{font-size:11px;color:var(--faint);margin-top:-1px;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(20,45,90,.05);}
+  .input{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 12px;font-family:var(--mono);outline:none;}
+  .input:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  input[type=number]{-moz-appearance:textfield;}
+  input[type=date]{color-scheme:light;}
+  input::placeholder{color:var(--faint);}
+  button{font-family:var(--sans);}
+
+  .daterow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;}
+  .daterow label{font-size:12px;color:var(--muted);font-weight:600;}
+  .daterow input{padding:8px 10px;font-size:14px;}
+  .statusrow{display:flex;align-items:center;justify-content:space-between;margin:14px 2px 8px;}
+  .statusrow span{font-size:12px;color:var(--muted);font-weight:600;}
+  .editbtn{font-size:12.5px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer;}
+
+  .grouphd{display:flex;align-items:center;gap:12px;margin:16px 0 10px;}
+  .grouphd .g{font-family:var(--mono);font-weight:700;font-size:12px;letter-spacing:1.5px;color:var(--accent);}
+  .grouphd .ln{flex:1;height:1px;background:var(--line);}
+
+  .exc{padding:12px;margin-bottom:10px;}
+  .exc-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;}
+  .exc-name{font-weight:600;font-size:14px;}
+  .exc-in{display:flex;align-items:center;gap:8px;}
+  .exc-w{display:flex;align-items:center;gap:4px;flex:1;}
+  .exc-w input{width:100%;font-size:18px;font-weight:700;text-align:center;}
+  .exc-w .u{font-family:var(--mono);font-size:12px;color:var(--faint);width:24px;}
+  .exc-reps{width:84px;font-size:14px;text-align:center;}
+  .exc-last{font-size:11px;color:var(--faint);margin-top:7px;}
+
+  .utog{display:inline-flex;border-radius:999px;background:var(--surface2);border:1px solid var(--line);padding:2px;}
+  .utog button{font-family:var(--mono);font-weight:600;font-size:11px;padding:3px 10px;border:none;background:transparent;color:var(--muted);border-radius:999px;cursor:pointer;}
+  .utog button.on{background:var(--accent);color:#fff;}
+
+  .exrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 12px;margin-bottom:8px;}
+  .iconbtn{width:32px;height:32px;border-radius:8px;background:var(--surface2);border:none;display:grid;place-items:center;cursor:pointer;color:var(--muted);}
+  .iconbtn.del{color:var(--down);}
+  .iconbtn svg{width:15px;height:15px;}
+
+  .addform{padding:14px;margin-top:18px;}
+  .addform .ttl{font-size:13px;font-weight:700;margin-bottom:10px;}
+  .addform .name{width:100%;font-family:var(--sans);font-size:14px;margin-bottom:10px;}
+  .pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .pill{font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;}
+  .pill.on{background:var(--accent);color:#fff;border-color:transparent;}
+  .adderr{font-size:12px;color:var(--down);margin-bottom:10px;}
+  .addbtn{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px;border-radius:11px;background:var(--accent);color:#fff;border:none;font-weight:600;font-size:14px;cursor:pointer;}
+  .addbtn svg{width:17px;height:17px;}
+  .hint{font-size:11.5px;color:var(--faint);text-align:center;margin-top:16px;line-height:1.5;}
+
+  .statpair{display:flex;gap:8px;margin-bottom:14px;}
+  .statbox{flex:1;padding:12px 14px;}
+  .statbox .n{font-family:var(--mono);font-weight:700;font-size:22px;}
+  .statbox .n.acc{color:var(--accent);}
+  .statbox .l{font-size:11px;color:var(--muted);}
+  .pcard{padding:14px;margin-bottom:10px;}
+  .pcard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;}
+  .pcard-name{font-weight:600;font-size:14px;}
+  .pcard-grp{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.5px;margin-bottom:5px;}
+  .delta{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-weight:600;font-size:15px;}
+  .delta .au{color:var(--faint);font-weight:400;}
+  .delta-note{font-size:11px;color:var(--faint);margin-top:2px;}
+  .pcard-stats{display:flex;gap:8px;border-top:1px solid var(--line);padding-top:10px;}
+  .pcard-stats>div{flex:1;}
+  .pcard-stats .v{font-family:var(--mono);font-weight:700;font-size:17px;}
+  .pcard-stats .v .u{font-size:11px;color:var(--faint);font-weight:400;}
+  .pcard-stats .k{font-size:10.5px;color:var(--muted);letter-spacing:.4px;}
+
+  .empty{padding:28px;text-align:center;}
+  .empty svg{width:26px;height:26px;color:var(--faint);margin:0 auto 10px;display:block;}
+  .empty .t{color:var(--muted);font-size:14px;}
+  .empty .s{color:var(--faint);font-size:12px;margin-top:4px;}
+
+  .hcard{padding:13px;margin-bottom:10px;}
+  .hcard-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+  .hcard-date{font-weight:600;font-size:14px;}
+  .hcard-cnt{font-family:var(--mono);font-size:11.5px;color:var(--accent);}
+  .hcard-acts{display:flex;gap:6px;}
+  .hentries{border-top:1px solid var(--line);padding-top:8px;}
+  .hentry{display:flex;align-items:center;justify-content:space-between;padding:3px 0;font-size:13px;}
+  .hentry .ex{color:var(--muted);}
+  .hentry .val{font-family:var(--mono);color:var(--text);}
+  .hentry .val .r{color:var(--faint);}
+  .resetwrap{margin-top:18px;text-align:center;}
+  .resetbtn{font-size:12px;color:var(--faint);background:none;border:none;cursor:pointer;padding:8px;}
+  .confirm{padding:14px;}
+  .confirm .q{font-size:13px;margin-bottom:10px;}
+  .confirm .btns{display:flex;gap:8px;}
+  .confirm button{flex:1;padding:10px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;}
+  .confirm .keep{background:var(--surface2);color:var(--text);}
+  .confirm .delall{background:var(--down);color:#fff;font-weight:700;}
+
+  .nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);}
+  .nav-inner{display:flex;max-width:540px;margin:0 auto;}
+  .nav button{flex:1;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:9px 0;background:none;border:none;cursor:pointer;color:var(--muted);}
+  .nav button.on{color:var(--accent);}
+  .nav button span{font-size:11px;font-weight:500;}
+  .nav button.on span{font-weight:700;}
+  .nav svg{width:20px;height:20px;}
+
+  .loading{padding:60px 0;text-align:center;color:var(--muted);}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important;}}
+</style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root"><div class="loading">Loading…</div></div>
 
 <script>
-/* ---- localStorage shim: lets the original app persist offline, no Claude needed.
-   Namespaced with 'ironlog:' so it never collides with the other bundled apps. ---- */
-window.storage = (function (prefix) {
-  return {
-    get: async function (k) { try { var v = localStorage.getItem(prefix + k); return v === null ? null : { value: v }; } catch (e) { return null; } },
-    set: async function (k, val) { try { localStorage.setItem(prefix + k, val); } catch (e) {} return { value: val }; },
-  };
-})('ironlog:');
+(function(){
+  "use strict";
 
-/* ---- home-screen icon (generated, no external files) ---- */
-function _rr(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath();}
-function _mkIcon(s){
-  var c=document.createElement('canvas');c.width=s;c.height=s;var x=c.getContext('2d');
-  _rr(x,0,0,s,s,s*0.22);x.fillStyle='#2563EB';x.fill();
-  x.strokeStyle='#fff';x.lineCap='round';var y=s*0.5;
-  x.lineWidth=s*0.06;x.beginPath();x.moveTo(s*0.3,y);x.lineTo(s*0.7,y);x.stroke();
-  x.lineWidth=s*0.055;[0.27,0.73].forEach(function(px){x.beginPath();x.moveTo(s*px,y-s*0.12);x.lineTo(s*px,y+s*0.12);x.stroke();});
-  [0.21,0.79].forEach(function(px){x.beginPath();x.moveTo(s*px,y-s*0.075);x.lineTo(s*px,y+s*0.075);x.stroke();});
-  return c.toDataURL('image/png');
-}
-try{
-  var _a=document.createElement('link');_a.rel='apple-touch-icon';_a.href=_mkIcon(180);document.head.appendChild(_a);
-  var _f=document.createElement('link');_f.rel='icon';_f.href=_mkIcon(64);document.head.appendChild(_f);
-  var _m={name:'IRONLOG',short_name:'IRONLOG',display:'standalone',background_color:'#F4F7FC',theme_color:'#F4F7FC',start_url:'.',icons:[{src:_mkIcon(192),sizes:'192x192',type:'image/png'},{src:_mkIcon(512),sizes:'512x512',type:'image/png'}]};
-  var _mb=new Blob([JSON.stringify(_m)],{type:'application/manifest+json'});var _ml=document.createElement('link');_ml.rel='manifest';_ml.href=URL.createObjectURL(_mb);document.head.appendChild(_ml);
-}catch(e){}
+  /* ====== constants ====== */
+  var DEFAULT_EXERCISES = [
+    {name:'Chest Press',group:'Chest'},{name:'Incline Smith Press',group:'Chest'},
+    {name:'Wide-Grip Lat Pulldown',group:'Back'},{name:'Close-Grip Cable Row',group:'Back'},{name:'Machine Row',group:'Back'},{name:'Chest-Supported Row',group:'Back'},
+    {name:'Shoulder Press',group:'Shoulders'},{name:'Lateral Raises',group:'Shoulders'},{name:'Rear Delt Cable',group:'Shoulders'},
+    {name:'Preacher Curl',group:'Arms'},{name:'Bayesian Curl',group:'Arms'},{name:'Hammer Curl',group:'Arms'},{name:'Tricep Pushdown',group:'Arms'},{name:'Overhead Tricep Extension',group:'Arms'},
+    {name:'Leg Press',group:'Legs'},{name:'RDL',group:'Legs'},{name:'Hip Thrust',group:'Legs'},{name:'Leg Curl',group:'Legs'},{name:'Leg Extension',group:'Legs'},{name:'Adductor',group:'Legs'},{name:'Calves',group:'Legs'}
+  ];
+  var GROUP_ORDER = ['Chest','Back','Shoulders','Arms','Legs','Other'];
+  var LBS_PER_KG = 2.20462, DAY = 86400000, NS = 'ironlog:';
+
+  /* ====== helpers ====== */
+  function pad(n){return String(n).padStart(2,'0');}
+  function todayStr(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  function dateToMs(s){return new Date(s+'T00:00:00').getTime();}
+  function uid(){return Date.now()+'-'+Math.random().toString(36).slice(2,7);}
+  function fmt(n){if(n==null||isNaN(n))return '—';var r=Math.round(n*10)/10;return Number.isInteger(r)?String(r):r.toFixed(1);}
+  function convert(w,from,to){return from===to?w:(to==='kg'?w/LBS_PER_KG:w*LBS_PER_KG);}
+  function prettyDate(s){return new Date(s+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});}
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function lget(k,def){try{var v=localStorage.getItem(NS+k);return v?JSON.parse(v):def;}catch(e){return def;}}
+  function lset(k,v){try{localStorage.setItem(NS+k,JSON.stringify(v));}catch(e){}}
+
+  function svg(name){
+    var p={
+      dumbbell:'<path d="M6 9v6M3 10v4M18 9v6M21 10v4M6 12h12"/>',
+      bars:'<path d="M4 20V10M10 20V4M16 20v-8M4 20h16"/>',
+      clip:'<rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 4V3h6v1M9 9h6M9 13h6M9 17h4"/>',
+      trash:'<path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
+      pencil:'<path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/>',
+      plus:'<path d="M12 5v14M5 12h14"/>'
+    }[name];
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
+  }
+
+  /* ====== state ====== */
+  var workouts=[], units={}, exercises=DEFAULT_EXERCISES.slice();
+  var tab='log', logDate=todayStr(), draft={}, editMode=false, newGroup='Chest', newName='', addError='', confirmReset=false, loaded=false;
+  var saveTimer=null;
+
+  function groupMap(){var m={};exercises.forEach(function(e){m[e.name]=e.group;});return m;}
+  function buildDraft(session){var d={};if(session)session.entries.forEach(function(e){d[e.exercise]={weight:String(e.weight),reps:e.reps!=null?String(e.reps):''};});return d;}
+
+  /* ====== persistence of the log draft (auto-save) ====== */
+  function commitDraft(){
+    var names=exercises.map(function(e){return e.name;});
+    var entries=names.filter(function(ex){return draft[ex]&&draft[ex].weight!==''&&draft[ex].weight!=null&&!isNaN(Number(draft[ex].weight));})
+      .map(function(ex){return {exercise:ex,weight:Number(draft[ex].weight),unit:units[ex]||'kg',reps:(draft[ex].reps&&!isNaN(Number(draft[ex].reps)))?Number(draft[ex].reps):null};});
+    var existing=workouts.filter(function(w){return w.date===logDate;})[0];
+    if(entries.length===0){ if(existing) workouts=workouts.filter(function(w){return w.date!==logDate;}); }
+    else { var session={id:existing?existing.id:uid(),date:logDate,entries:entries}; workouts=workouts.filter(function(w){return w.date!==logDate;}).concat(session); }
+    lset('workouts',workouts);
+  }
+  function setStatus(s){var el=document.getElementById('saveStatus');if(el&&!editMode)el.textContent=(s==='saving')?'Saving…':'✓ All changes saved';}
+  function scheduleSave(){setStatus('saving');if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(function(){saveTimer=null;commitDraft();setStatus('saved');},500);}
+  function flushSave(){if(saveTimer){clearTimeout(saveTimer);saveTimer=null;commitDraft();}}
+
+  function lastEntryFor(ex){
+    var best=null;
+    workouts.forEach(function(w){
+      if(w.date===logDate)return;
+      var e=w.entries.filter(function(en){return en.exercise===ex;})[0];
+      if(e){var t=dateToMs(w.date);if(!best||t>best.t)best={t:t,weight:convert(e.weight,e.unit||'kg',units[ex]||'kg'),reps:e.reps,date:w.date};}
+    });
+    return best;
+  }
+
+  function computeStats(){
+    var now=dateToMs(todayStr()),out={};
+    exercises.forEach(function(item){
+      var ex=item.name,u=units[ex]||'kg',entries=[];
+      workouts.forEach(function(w){var e=w.entries.filter(function(en){return en.exercise===ex;})[0];if(e)entries.push({t:dateToMs(w.date),weight:convert(e.weight,e.unit||'kg',u)});});
+      entries.sort(function(a,b){return a.t-b.t;});
+      function avg(arr){return arr.length?arr.reduce(function(s,e){return s+e.weight;},0)/arr.length:null;}
+      var tw=avg(entries.filter(function(e){return e.t>=now-6*DAY;}));
+      var lw=avg(entries.filter(function(e){return e.t>=now-13*DAY&&e.t<=now-7*DAY;}));
+      out[ex]={unit:u,count:entries.length,last:entries.length?entries[entries.length-1]:null,
+        sevenDay:avg(entries.filter(function(e){return e.t>=now-6*DAY;})),
+        monthly:avg(entries.filter(function(e){return e.t>=now-29*DAY;})),
+        wow:(tw!=null&&lw!=null)?tw-lw:null,
+        trend:entries.slice(-12).map(function(e){return e.weight;})};
+    });
+    return out;
+  }
+
+  function sparkline(data){
+    if(!data||data.length<2)return '';
+    var w=76,h=26,p=3,min=Math.min.apply(null,data),max=Math.max.apply(null,data),rng=(max-min)||1;
+    var pts=data.map(function(v,i){return [p+(i/(data.length-1))*(w-2*p),h-p-((v-min)/rng)*(h-2*p)];});
+    var d='M'+pts.map(function(pt){return pt[0].toFixed(1)+','+pt[1].toFixed(1);}).join(' L');
+    var col=data[data.length-1]>=data[0]?'var(--up)':'var(--down)';var last=pts[pts.length-1];
+    return '<svg width="'+w+'" height="'+h+'" style="display:block"><path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.2" fill="'+col+'"/></svg>';
+  }
+  function deltaHTML(value,unit){
+    if(value==null)return '<span class="delta" style="color:var(--faint);font-size:12px">no prior week</span>';
+    var flat=Math.abs(value)<0.05,up=value>0;
+    var col=flat?'var(--muted)':up?'var(--up)':'var(--down)';
+    var arw=flat?'→':up?'▲':'▼';var sign=flat?'':up?'+':'−';
+    return '<span class="delta" style="color:'+col+'">'+arw+' '+sign+fmt(Math.abs(value))+'<span class="au">'+unit+'</span></span>';
+  }
+  function unitToggle(ex){
+    var cur=units[ex]||'kg';
+    return '<span class="utog">'+['kg','lb'].map(function(u){var v=u==='lb'?'lbs':'kg';var on=cur===v;return '<button'+(on?' class="on"':'')+' data-action="unit" data-ex="'+esc(ex)+'" data-u="'+v+'">'+u.toUpperCase()+'</button>';}).join('')+'</span>';
+  }
+
+  function groupsToShow(){return GROUP_ORDER.map(function(g){return {name:g,items:exercises.filter(function(e){return e.group===g;})};}).filter(function(g){return g.items.length>0;});}
+
+  /* ====== views ====== */
+  function headerHTML(){
+    return '<div class="head"><div class="logo">'+svg('dumbbell')+'</div><div><div class="brand">IRONLOG</div><div class="brand-sub">Strength tracker</div></div></div>';
+  }
+  function navHTML(){
+    var items=[['log','dumbbell','Log'],['progress','bars','Progress'],['history','clip','History']];
+    return '<div class="nav"><div class="nav-inner">'+items.map(function(it){var on=tab===it[0];return '<button'+(on?' class="on"':'')+' data-action="tab" data-tab="'+it[0]+'">'+svg(it[1])+'<span>'+it[2]+'</span></button>';}).join('')+'</div></div>';
+  }
+
+  function renderLog(){
+    var h='';
+    h+='<div class="card daterow"><label>Date</label><input type="date" id="logDate" class="input" value="'+logDate+'" max="'+todayStr()+'"></div>';
+    h+='<div class="statusrow"><span id="saveStatus">'+(editMode?'Add or remove exercises':'✓ All changes saved')+'</span><button class="editbtn" data-action="toggleEdit">'+(editMode?'Done':'Edit')+'</button></div>';
+
+    groupsToShow().forEach(function(g){
+      h+='<div class="grouphd"><span class="g">'+g.name.toUpperCase()+'</span><div class="ln"></div></div>';
+      g.items.forEach(function(item){
+        var ex=item.name;
+        if(editMode){
+          h+='<div class="card exrow"><span class="exc-name">'+esc(ex)+'</span><button class="iconbtn del" data-action="delEx" data-ex="'+esc(ex)+'" aria-label="Delete">'+svg('trash')+'</button></div>';
+          return;
+        }
+        var last=lastEntryFor(ex),cur=units[ex]||'kg';
+        var wv=(draft[ex]&&draft[ex].weight!=null)?draft[ex].weight:'';
+        var rv=(draft[ex]&&draft[ex].reps!=null)?draft[ex].reps:'';
+        h+='<div class="card exc">'
+          +'<div class="exc-top"><span class="exc-name">'+esc(ex)+'</span>'+unitToggle(ex)+'</div>'
+          +'<div class="exc-in"><div class="exc-w"><input class="input" inputmode="decimal" type="number" data-ex="'+esc(ex)+'" data-field="weight" value="'+esc(wv)+'" placeholder="'+(last?esc(fmt(last.weight)):'weight')+'"><span class="u">'+cur+'</span></div>'
+          +'<input class="input exc-reps" inputmode="numeric" type="number" data-ex="'+esc(ex)+'" data-field="reps" value="'+esc(rv)+'" placeholder="reps"></div>'
+          +(last?('<div class="exc-last">Last · '+fmt(last.weight)+' '+cur+(last.reps?(' × '+last.reps):'')+' · '+prettyDate(last.date)+'</div>'):'')
+          +'</div>';
+      });
+    });
+
+    if(editMode){
+      h+='<div class="card addform"><div class="ttl">Add an exercise</div>'
+        +'<input id="newName" class="input name" value="'+esc(newName)+'" placeholder="Exercise name">'
+        +'<div class="pills">'+GROUP_ORDER.map(function(g){return '<button class="pill'+(newGroup===g?' on':'')+'" data-action="group" data-g="'+g+'">'+g+'</button>';}).join('')+'</div>'
+        +(addError?'<div class="adderr">'+esc(addError)+'</div>':'')
+        +'<button class="addbtn" data-action="addEx">'+svg('plus')+' Add exercise</button></div>';
+    } else {
+      h+='<div class="hint">Logs save automatically as you type — enter one exercise at a time, even mid-workout.</div>';
+    }
+    return h;
+  }
+
+  function renderProgress(){
+    var stats=computeStats(),gm=groupMap(),now=dateToMs(todayStr());
+    var weekCount=workouts.filter(function(w){return dateToMs(w.date)>=now-6*DAY;}).length;
+    var trained=exercises.map(function(i){return i.name;}).filter(function(ex){return stats[ex]&&stats[ex].count>0;})
+      .sort(function(a,b){return (stats[b].last?stats[b].last.t:0)-(stats[a].last?stats[a].last.t:0);});
+    var h='<div class="statpair"><div class="card statbox"><div class="n acc">'+weekCount+'</div><div class="l">sessions · last 7 days</div></div>'
+      +'<div class="card statbox"><div class="n">'+workouts.length+'</div><div class="l">sessions · all time</div></div></div>';
+    if(trained.length===0){
+      h+='<div class="card empty">'+svg('bars')+'<div class="t">No lifts logged yet.</div><div class="s">Log a session and your averages and weekly change show up here.</div></div>';
+      return h;
+    }
+    trained.forEach(function(ex){
+      var s=stats[ex];
+      h+='<div class="card pcard"><div class="pcard-top"><div style="min-width:0">'
+        +'<div class="pcard-name">'+esc(ex)+'</div><div class="pcard-grp">'+esc((gm[ex]||'').toUpperCase())+'</div>'
+        +deltaHTML(s.wow,s.unit)+'<div class="delta-note">vs. previous week</div></div>'+sparkline(s.trend)+'</div>'
+        +'<div class="pcard-stats">'
+        +'<div><div class="v">'+fmt(s.sevenDay)+' <span class="u">'+s.unit+'</span></div><div class="k">7-DAY AVG</div></div>'
+        +'<div><div class="v">'+fmt(s.monthly)+' <span class="u">'+s.unit+'</span></div><div class="k">30-DAY AVG</div></div>'
+        +'<div><div class="v">'+fmt(s.last?s.last.weight:null)+' <span class="u">'+s.unit+'</span></div><div class="k">LATEST</div></div>'
+        +'</div></div>';
+    });
+    return h;
+  }
+
+  function renderHistory(){
+    if(workouts.length===0){
+      return '<div class="card empty">'+svg('clip')+'<div class="t">No sessions logged.</div><div class="s">Head to Log to record your first workout.</div></div>';
+    }
+    var sorted=workouts.slice().sort(function(a,b){return dateToMs(b.date)-dateToMs(a.date);});
+    var h='';
+    sorted.forEach(function(w){
+      h+='<div class="card hcard"><div class="hcard-top"><div><div class="hcard-date">'+prettyDate(w.date)+'</div><div class="hcard-cnt">'+w.entries.length+' exercise'+(w.entries.length!==1?'s':'')+'</div></div>'
+        +'<div class="hcard-acts"><button class="iconbtn" data-action="editSession" data-id="'+w.id+'" aria-label="Edit">'+svg('pencil')+'</button><button class="iconbtn del" data-action="delSession" data-id="'+w.id+'" aria-label="Delete">'+svg('trash')+'</button></div></div>'
+        +'<div class="hentries">'+w.entries.map(function(e){return '<div class="hentry"><span class="ex">'+esc(e.exercise)+'</span><span class="val">'+fmt(e.weight)+' '+e.unit+(e.reps?('<span class="r"> × '+e.reps+'</span>'):'')+'</span></div>';}).join('')+'</div></div>';
+    });
+    h+='<div class="resetwrap">'+(confirmReset
+      ?('<div class="card confirm"><div class="q">Delete every logged session? This can\'t be undone.</div><div class="btns"><button class="keep" data-action="cancelReset">Keep my data</button><button class="delall" data-action="doReset">Delete all</button></div></div>')
+      :('<button class="resetbtn" data-action="askReset">Reset all data</button>'))+'</div>';
+    return h;
+  }
+
+  function render(){
+    var root=document.getElementById('root');
+    if(!loaded){root.innerHTML='<div class="loading">Loading…</div>';return;}
+    var body= tab==='log'?renderLog() : tab==='progress'?renderProgress() : renderHistory();
+    root.innerHTML='<div class="app">'+headerHTML()+body+'</div>'+navHTML();
+  }
+
+  /* ====== actions ====== */
+  function changeDate(d){flushSave();logDate=d;draft=buildDraft(workouts.filter(function(w){return w.date===d;})[0]);render();}
+
+  function onClick(e){
+    var b=e.target.closest('[data-action]');if(!b)return;
+    var a=b.getAttribute('data-action');
+    if(a==='tab'){var nt=b.getAttribute('data-tab');if(tab==='log'&&nt!=='log')flushSave();tab=nt;if(nt!=='log'){editMode=false;}render();window.scrollTo(0,0);}
+    else if(a==='toggleEdit'){editMode=!editMode;addError='';render();}
+    else if(a==='unit'){var ex=b.getAttribute('data-ex');units[ex]=b.getAttribute('data-u');lset('units',units);render();}
+    else if(a==='delEx'){var x=b.getAttribute('data-ex');exercises=exercises.filter(function(e){return e.name!==x;});delete draft[x];lset('exercises',exercises);render();}
+    else if(a==='group'){newGroup=b.getAttribute('data-g');render();}
+    else if(a==='addEx'){
+      var input=document.getElementById('newName');var nm=input?input.value.trim():'';
+      if(!nm){return;}
+      if(exercises.some(function(e){return e.name.toLowerCase()===nm.toLowerCase();})){addError='That exercise already exists.';render();return;}
+      exercises=exercises.concat([{name:nm,group:newGroup}]);newName='';addError='';lset('exercises',exercises);render();
+    }
+    else if(a==='delSession'){var id=b.getAttribute('data-id');workouts=workouts.filter(function(w){return w.id!==id;});lset('workouts',workouts);render();}
+    else if(a==='editSession'){flushSave();var sid=b.getAttribute('data-id');var s=workouts.filter(function(w){return w.id===sid;})[0];if(s){logDate=s.date;draft=buildDraft(s);editMode=false;tab='log';render();window.scrollTo(0,0);}}
+    else if(a==='askReset'){confirmReset=true;render();}
+    else if(a==='cancelReset'){confirmReset=false;render();}
+    else if(a==='doReset'){workouts=[];draft={};confirmReset=false;lset('workouts',workouts);render();}
+  }
+  function onInput(e){
+    var t=e.target;
+    if(t.dataset&&t.dataset.field){var ex=t.dataset.ex;var cur=draft[ex]||{};var nx={weight:cur.weight,reps:cur.reps};nx[t.dataset.field]=t.value;draft[ex]=nx;scheduleSave();}
+    else if(t.id==='newName'){newName=t.value;addError='';}
+  }
+  function onChange(e){if(e.target.id==='logDate')changeDate(e.target.value);}
+
+  /* ====== init ====== */
+  function init(){
+    var w=lget('workouts',[]);workouts=Array.isArray(w)?w:[];
+    var u=lget('units',{});units=(u&&typeof u==='object')?u:{};
+    var ex=lget('exercises',null);exercises=(Array.isArray(ex)&&ex.length)?ex:DEFAULT_EXERCISES.slice();
+    draft=buildDraft(workouts.filter(function(x){return x.date===todayStr();})[0]);
+    loaded=true;
+    var root=document.getElementById('root');
+    root.addEventListener('click',onClick);
+    root.addEventListener('input',onInput);
+    root.addEventListener('change',onChange);
+    render();
+  }
+  init();
+})();
 </script>
 
-<script type="text/babel" data-presets="react">
-const { useState, useEffect, useMemo } = React;
-
-/* ---- inline icons (replacing lucide-react) ---- */
-const _mkI = (paths) => ({ size = 24, color = 'currentColor', strokeWidth = 2, style, ...rest }) =>
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={style} {...rest}>{paths}</svg>;
-const Dumbbell = _mkI(<><path d="M6 9v6"/><path d="M3 10v4"/><path d="M18 9v6"/><path d="M21 10v4"/><path d="M6 12h12"/></>);
-const BarChart3 = _mkI(<><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-8"/><path d="M4 20h16"/></>);
-const ClipboardList = _mkI(<><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 9h6"/><path d="M9 13h6"/><path d="M9 17h4"/></>);
-const TrendingUp = _mkI(<><path d="M3 17l6-6 4 4 7-7"/><path d="M17 8h4v4"/></>);
-const TrendingDown = _mkI(<><path d="M3 7l6 6 4-4 7 7"/><path d="M17 16h4v-4"/></>);
-const Minus = _mkI(<path d="M5 12h14"/>);
-const Trash2 = _mkI(<><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6"/><path d="M14 11v6"/></>);
-const Pencil = _mkI(<><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/></>);
-const Plus = _mkI(<><path d="M12 5v14"/><path d="M5 12h14"/></>);
-const Check = _mkI(<path d="M5 12l5 5L20 7"/>);
-
-// ---- Palette: white + blue. green=stronger, rose=lighter ----
-const C = {
-  bg: '#F4F7FC', surface: '#FFFFFF', surface2: '#EEF2F9', line: '#D9E2EF',
-  text: '#15243A', muted: '#5C6B82', faint: '#8A94A6', accent: '#2563EB', onAccent: '#FFFFFF',
-  up: '#0E9F6E', down: '#E11D48',
-};
-const CARD_SHADOW = '0 1px 2px rgba(20, 45, 90, 0.05)';
-
-// ---- Default exercises (editable; persisted once changed) ----
-const DEFAULT_EXERCISES = [
-  { name: 'Chest Press', group: 'Chest' }, { name: 'Incline Smith Press', group: 'Chest' },
-  { name: 'Wide-Grip Lat Pulldown', group: 'Back' }, { name: 'Close-Grip Cable Row', group: 'Back' }, { name: 'Machine Row', group: 'Back' }, { name: 'Chest-Supported Row', group: 'Back' },
-  { name: 'Shoulder Press', group: 'Shoulders' }, { name: 'Lateral Raises', group: 'Shoulders' }, { name: 'Rear Delt Cable', group: 'Shoulders' },
-  { name: 'Preacher Curl', group: 'Arms' }, { name: 'Bayesian Curl', group: 'Arms' }, { name: 'Hammer Curl', group: 'Arms' }, { name: 'Tricep Pushdown', group: 'Arms' }, { name: 'Overhead Tricep Extension', group: 'Arms' },
-  { name: 'Leg Press', group: 'Legs' }, { name: 'RDL', group: 'Legs' }, { name: 'Hip Thrust', group: 'Legs' }, { name: 'Leg Curl', group: 'Legs' }, { name: 'Leg Extension', group: 'Legs' }, { name: 'Adductor', group: 'Legs' }, { name: 'Calves', group: 'Legs' },
-];
-const GROUP_ORDER = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Other'];
-
-const LBS_PER_KG = 2.20462;
-const DAY = 86400000;
-
-const pad = (n) => String(n).padStart(2, '0');
-const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
-const dateToMs = (s) => new Date(s + 'T00:00:00').getTime();
-const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-const fmt = (n) => { if (n == null || isNaN(n)) return '—'; const r = Math.round(n * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
-const convert = (w, from, to) => from === to ? w : (to === 'kg' ? w / LBS_PER_KG : w * LBS_PER_KG);
-const prettyDate = (s) => { const d = new Date(s + 'T00:00:00'); return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); };
-
-const store = {
-  async get(k) { try { if (!window.storage) return null; const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } catch { return null; } },
-  async set(k, v) { try { if (!window.storage) return; await window.storage.set(k, JSON.stringify(v)); } catch (e) { console.error('save failed', e); } },
-};
-
-function Sparkline({ data }) {
-  if (!data || data.length < 2) return null;
-  const w = 76, h = 26, p = 3;
-  const min = Math.min(...data), max = Math.max(...data), rng = (max - min) || 1;
-  const pts = data.map((v, i) => [p + (i / (data.length - 1)) * (w - 2 * p), h - p - ((v - min) / rng) * (h - 2 * p)]);
-  const d = 'M' + pts.map((pt) => `${pt[0].toFixed(1)},${pt[1].toFixed(1)}`).join(' L');
-  const col = data[data.length - 1] >= data[0] ? C.up : C.down;
-  return (
-    <svg width={w} height={h} style={{ display: 'block' }} aria-hidden="true">
-      <path d={d} fill="none" stroke={col} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="2.2" fill={col} />
-    </svg>
-  );
-}
-
-function Delta({ value, unit }) {
-  if (value == null) return <span className="font-mono text-xs" style={{ color: C.faint }}>no prior week</span>;
-  const flat = Math.abs(value) < 0.05;
-  const up = value > 0;
-  const col = flat ? C.muted : up ? C.up : C.down;
-  const Icon = flat ? Minus : up ? TrendingUp : TrendingDown;
-  const sign = flat ? '' : up ? '+' : '−';
-  return (
-    <span className="inline-flex items-center gap-1 font-mono font-semibold" style={{ color: col, fontSize: 15 }}>
-      <Icon size={15} strokeWidth={2.5} /> {sign}{fmt(Math.abs(value))}<span style={{ color: C.faint, fontWeight: 400 }}>{unit}</span>
-    </span>
-  );
-}
-
-function UnitToggle({ value, onChange }) {
-  return (
-    <div className="inline-flex rounded-full" style={{ background: C.surface2, border: `1px solid ${C.line}`, padding: 2 }}>
-      {['kg', 'lb'].map((u) => {
-        const v = u === 'lb' ? 'lbs' : 'kg';
-        const active = value === v;
-        return (
-          <button key={u} onClick={() => onChange(v)} className="font-mono font-semibold rounded-full"
-            style={{ fontSize: 11, padding: '3px 10px', color: active ? C.onAccent : C.muted, background: active ? C.accent : 'transparent', transition: 'all .15s' }}>
-            {u.toUpperCase()}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-const TABS = [
-  { id: 'log', icon: Dumbbell, label: 'Log' },
-  { id: 'progress', icon: BarChart3, label: 'Progress' },
-  { id: 'history', icon: ClipboardList, label: 'History' },
-];
-
-function App() {
-  const [workouts, setWorkouts] = useState([]);
-  const [units, setUnits] = useState({});
-  const [exercises, setExercises] = useState(DEFAULT_EXERCISES);
-  const [loaded, setLoaded] = useState(false);
-  const [tab, setTab] = useState('log');
-
-  const [logDate, setLogDate] = useState(todayStr());
-  const [draft, setDraft] = useState({});
-  const [saveState, setSaveState] = useState('saved'); // 'saved' | 'saving'
-  const [confirmReset, setConfirmReset] = useState(false);
-
-  // edit-exercises mode + add form
-  const [editMode, setEditMode] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newGroup, setNewGroup] = useState('Chest');
-  const [addError, setAddError] = useState('');
-
-  const allEx = useMemo(() => exercises.map((e) => e.name), [exercises]);
-  const groupOf = useMemo(() => { const m = {}; exercises.forEach((e) => { m[e.name] = e.group; }); return m; }, [exercises]);
-  const groupsToShow = useMemo(() => GROUP_ORDER.map((g) => ({ name: g, items: exercises.filter((e) => e.group === g) })).filter((g) => g.items.length > 0), [exercises]);
-
-  const buildDraft = (session) => {
-    const d = {};
-    if (session) for (const e of session.entries) d[e.exercise] = { weight: String(e.weight), reps: e.reps != null ? String(e.reps) : '' };
-    return d;
-  };
-
-  // load once
-  useEffect(() => {
-    (async () => {
-      const w = await store.get('workouts'); const list = Array.isArray(w) ? w : [];
-      const u = await store.get('units');
-      const ex = await store.get('exercises');
-      setWorkouts(list);
-      if (u && typeof u === 'object') setUnits(u);
-      if (Array.isArray(ex) && ex.length) setExercises(ex);
-      setDraft(buildDraft(list.find((x) => x.date === todayStr())));
-      setLoaded(true);
-    })();
-  }, []);
-
-  // persist
-  useEffect(() => { if (loaded) store.set('workouts', workouts); }, [workouts, loaded]);
-  useEffect(() => { if (loaded) store.set('units', units); }, [units, loaded]);
-  useEffect(() => { if (loaded) store.set('exercises', exercises); }, [exercises, loaded]);
-
-  // auto-save: commit the draft into the selected date's session whenever it changes (debounced)
-  useEffect(() => {
-    if (!loaded) return;
-    const handle = setTimeout(() => {
-      const entries = allEx
-        .filter((ex) => draft[ex] && draft[ex].weight !== '' && draft[ex].weight != null && !isNaN(Number(draft[ex].weight)))
-        .map((ex) => ({ exercise: ex, weight: Number(draft[ex].weight), unit: units[ex] || 'kg', reps: draft[ex].reps && !isNaN(Number(draft[ex].reps)) ? Number(draft[ex].reps) : null }));
-      setWorkouts((prev) => {
-        const existing = prev.find((w) => w.date === logDate);
-        if (entries.length === 0) return existing ? prev.filter((w) => w.date !== logDate) : prev;
-        const session = { id: existing ? existing.id : uid(), date: logDate, entries };
-        return prev.filter((w) => w.date !== logDate).concat(session);
-      });
-      setSaveState('saved');
-    }, 500);
-    return () => clearTimeout(handle);
-  }, [draft, logDate, units, allEx, loaded]);
-
-  const unitFor = (ex) => units[ex] || 'kg';
-  const setUnitFor = (ex, u) => setUnits((prev) => ({ ...prev, [ex]: u }));
-
-  // most recent entry for an exercise, ignoring the date currently being edited
-  const lastEntryFor = (ex) => {
-    let best = null;
-    for (const w of workouts) {
-      if (w.date === logDate) continue;
-      const e = w.entries.find((en) => en.exercise === ex);
-      if (e) { const t = dateToMs(w.date); if (!best || t > best.t) best = { t, weight: convert(e.weight, e.unit || 'kg', unitFor(ex)), reps: e.reps, date: w.date }; }
-    }
-    return best;
-  };
-
-  const changeDate = (d) => { setLogDate(d); setDraft(buildDraft(workouts.find((w) => w.date === d))); };
-  const updateDraft = (ex, field, val) => { setSaveState('saving'); setDraft((d) => ({ ...d, [ex]: { ...d[ex], [field]: val } })); };
-
-  const addExercise = () => {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
-    if (exercises.some((e) => e.name.toLowerCase() === trimmed.toLowerCase())) { setAddError('That exercise already exists.'); return; }
-    setExercises((prev) => [...prev, { name: trimmed, group: newGroup }]);
-    setNewName(''); setAddError('');
-  };
-  const deleteExercise = (name) => {
-    setExercises((prev) => prev.filter((e) => e.name !== name));
-    setDraft((d) => { const n = { ...d }; delete n[name]; return n; });
-  };
-
-  const deleteSession = (id) => setWorkouts((prev) => prev.filter((w) => w.id !== id));
-  const editSession = (w) => { setLogDate(w.date); setDraft(buildDraft(w)); setEditMode(false); setTab('log'); };
-  const resetAll = () => { setWorkouts([]); setDraft({}); setConfirmReset(false); };
-
-  const stats = useMemo(() => {
-    const now = dateToMs(todayStr());
-    const out = {};
-    for (const ex of allEx) {
-      const u = units[ex] || 'kg';
-      const entries = [];
-      for (const w of workouts) { const e = w.entries.find((en) => en.exercise === ex); if (e) entries.push({ t: dateToMs(w.date), weight: convert(e.weight, e.unit || 'kg', u) }); }
-      entries.sort((a, b) => a.t - b.t);
-      const avg = (arr) => arr.length ? arr.reduce((s, e) => s + e.weight, 0) / arr.length : null;
-      const tw = avg(entries.filter((e) => e.t >= now - 6 * DAY));
-      const lw = avg(entries.filter((e) => e.t >= now - 13 * DAY && e.t <= now - 7 * DAY));
-      out[ex] = {
-        unit: u, count: entries.length, last: entries.length ? entries[entries.length - 1] : null,
-        sevenDay: avg(entries.filter((e) => e.t >= now - 6 * DAY)),
-        monthly: avg(entries.filter((e) => e.t >= now - 29 * DAY)),
-        wow: (tw != null && lw != null) ? tw - lw : null,
-        trend: entries.slice(-12).map((e) => e.weight),
-      };
-    }
-    return out;
-  }, [workouts, units, allEx]);
-
-  const trained = allEx.filter((ex) => stats[ex] && stats[ex].count > 0).sort((a, b) => (stats[b].last?.t || 0) - (stats[a].last?.t || 0));
-  const now = dateToMs(todayStr());
-  const weekCount = workouts.filter((w) => dateToMs(w.date) >= now - 6 * DAY).length;
-
-  const wrap = { background: C.bg, color: C.text, minHeight: '100vh', fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' };
-  const inner = { maxWidth: 540, margin: '0 auto', padding: '0 14px 96px' };
-  const card = { background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, boxShadow: CARD_SHADOW };
-  const inputBase = { background: C.surface2, border: `1px solid ${C.line}`, color: C.text, borderRadius: 10, padding: '10px 12px', fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace', outline: 'none' };
-
-  if (!loaded) return <div style={{ ...wrap, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ color: C.muted }}>Loading…</span></div>;
-
-  return (
-    <div style={wrap}>
-      <style>{`
-        *:focus-visible{ outline:2px solid ${C.accent}; outline-offset:2px; }
-        input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
-        input[type=number]{ -moz-appearance:textfield; }
-        input::placeholder{ color:${C.faint}; }
-        input[type=date]{ color-scheme:light; }
-        @media (prefers-reduced-motion: reduce){ *{ transition:none!important; animation:none!important; } }
-      `}</style>
-
-      <div style={inner}>
-        <div className="flex items-center gap-2" style={{ padding: '20px 0 14px' }}>
-          <div className="inline-flex items-center justify-center" style={{ width: 34, height: 34, borderRadius: 9, background: C.accent }}>
-            <Dumbbell size={20} color={C.onAccent} strokeWidth={2.6} />
-          </div>
-          <div>
-            <div className="font-mono font-bold" style={{ fontSize: 17, letterSpacing: 1, color: C.text }}>IRONLOG</div>
-            <div style={{ fontSize: 11, color: C.faint, marginTop: -1 }}>Strength tracker</div>
-          </div>
-        </div>
-      </div>
-
-      <div style={inner}>
-        {/* ---------------- LOG ---------------- */}
-        {tab === 'log' && (
-          <div>
-            <div className="flex items-center justify-between gap-3" style={{ ...card, padding: 12 }}>
-              <label style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>Date</label>
-              <input type="date" value={logDate} max={todayStr()} onChange={(e) => changeDate(e.target.value)} style={{ ...inputBase, padding: '8px 10px', fontSize: 14 }} />
-            </div>
-
-            <div className="flex items-center justify-between" style={{ margin: '14px 2px 8px' }}>
-              <span style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>
-                {editMode ? 'Add or remove exercises' : (saveState === 'saving' ? 'Saving…' : '✓ All changes saved')}
-              </span>
-              <button onClick={() => { setEditMode(!editMode); setAddError(''); }} style={{ fontSize: 12.5, fontWeight: 700, color: C.accent }}>
-                {editMode ? 'Done' : 'Edit'}
-              </button>
-            </div>
-
-            {groupsToShow.map((g) => (
-              <div key={g.name}>
-                <div className="flex items-center gap-3" style={{ margin: '16px 0 10px' }}>
-                  <span className="font-mono font-bold" style={{ fontSize: 12, letterSpacing: 1.5, color: C.accent }}>{g.name.toUpperCase()}</span>
-                  <div style={{ flex: 1, height: 1, background: C.line }} />
-                </div>
-                {g.items.map((item) => {
-                  const ex = item.name;
-                  if (editMode) {
-                    return (
-                      <div key={ex} className="flex items-center justify-between gap-2" style={{ ...card, padding: '11px 12px', marginBottom: 8 }}>
-                        <span style={{ fontWeight: 600, fontSize: 14 }}>{ex}</span>
-                        <button onClick={() => deleteExercise(ex)} className="inline-flex items-center justify-center" style={{ width: 32, height: 32, borderRadius: 8, background: C.surface2, color: C.down }} aria-label={`Delete ${ex}`}><Trash2 size={15} /></button>
-                      </div>
-                    );
-                  }
-                  const last = lastEntryFor(ex);
-                  const u = unitFor(ex);
-                  return (
-                    <div key={ex} style={{ ...card, padding: 12, marginBottom: 10 }}>
-                      <div className="flex items-center justify-between gap-2" style={{ marginBottom: 9 }}>
-                        <span style={{ fontWeight: 600, fontSize: 14 }}>{ex}</span>
-                        <UnitToggle value={u} onChange={(nu) => setUnitFor(ex, nu)} />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1" style={{ flex: 1 }}>
-                          <input inputMode="decimal" type="number" value={draft[ex]?.weight ?? ''} onChange={(e) => updateDraft(ex, 'weight', e.target.value)}
-                            placeholder={last ? fmt(last.weight) : 'weight'} style={{ ...inputBase, width: '100%', fontSize: 18, fontWeight: 700, textAlign: 'center' }} />
-                          <span className="font-mono" style={{ fontSize: 12, color: C.faint, width: 22 }}>{u}</span>
-                        </div>
-                        <input inputMode="numeric" type="number" value={draft[ex]?.reps ?? ''} onChange={(e) => updateDraft(ex, 'reps', e.target.value)}
-                          placeholder="reps" style={{ ...inputBase, width: 84, fontSize: 14, textAlign: 'center' }} />
-                      </div>
-                      {last && (
-                        <div style={{ fontSize: 11, color: C.faint, marginTop: 7 }}>
-                          Last · {fmt(last.weight)} {u}{last.reps ? ` × ${last.reps}` : ''} · {prettyDate(last.date)}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-
-            {editMode ? (
-              <div style={{ ...card, padding: 14, marginTop: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Add an exercise</div>
-                <input value={newName} onChange={(e) => { setNewName(e.target.value); setAddError(''); }} placeholder="Exercise name"
-                  style={{ ...inputBase, fontFamily: 'inherit', width: '100%', fontSize: 14, marginBottom: 10 }} />
-                <div className="flex flex-wrap gap-2" style={{ marginBottom: 12 }}>
-                  {GROUP_ORDER.map((g) => {
-                    const active = newGroup === g;
-                    return (
-                      <button key={g} onClick={() => setNewGroup(g)} style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 999, border: `1px solid ${active ? C.accent : C.line}`, background: active ? C.accent : C.surface, color: active ? C.onAccent : C.muted }}>{g}</button>
-                    );
-                  })}
-                </div>
-                {addError && <div style={{ fontSize: 12, color: C.down, marginBottom: 10 }}>{addError}</div>}
-                <button onClick={addExercise} disabled={!newName.trim()} className="w-full inline-flex items-center justify-center gap-2 font-semibold"
-                  style={{ padding: '12px', borderRadius: 11, background: newName.trim() ? C.accent : C.surface2, color: newName.trim() ? C.onAccent : C.faint, fontSize: 14 }}>
-                  <Plus size={17} strokeWidth={2.6} /> Add exercise
-                </button>
-              </div>
-            ) : (
-              <div style={{ fontSize: 11.5, color: C.faint, textAlign: 'center', marginTop: 16, lineHeight: 1.5 }}>
-                Logs save automatically as you type — enter one exercise at a time, even mid-workout.
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ---------------- PROGRESS ---------------- */}
-        {tab === 'progress' && (
-          <div>
-            <div className="flex gap-2" style={{ marginBottom: 14 }}>
-              <div style={{ ...card, padding: '12px 14px', flex: 1 }}>
-                <div className="font-mono font-bold" style={{ fontSize: 22, color: C.accent }}>{weekCount}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>sessions · last 7 days</div>
-              </div>
-              <div style={{ ...card, padding: '12px 14px', flex: 1 }}>
-                <div className="font-mono font-bold" style={{ fontSize: 22 }}>{workouts.length}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>sessions · all time</div>
-              </div>
-            </div>
-
-            {trained.length === 0 ? (
-              <div style={{ ...card, padding: 28, textAlign: 'center' }}>
-                <BarChart3 size={26} color={C.faint} style={{ margin: '0 auto 10px' }} />
-                <div style={{ color: C.muted, fontSize: 14 }}>No lifts logged yet.</div>
-                <div style={{ color: C.faint, fontSize: 12, marginTop: 4 }}>Log a session and your averages and weekly change show up here.</div>
-              </div>
-            ) : (
-              trained.map((ex) => {
-                const s = stats[ex];
-                return (
-                  <div key={ex} style={{ ...card, padding: 14, marginBottom: 10 }}>
-                    <div className="flex items-start justify-between gap-3" style={{ marginBottom: 10 }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{ex}</div>
-                        <div className="font-mono" style={{ fontSize: 10.5, color: C.faint, letterSpacing: 0.5, marginBottom: 5 }}>{(groupOf[ex] || '').toUpperCase()}</div>
-                        <Delta value={s.wow} unit={s.unit} />
-                        <div style={{ fontSize: 11, color: C.faint, marginTop: 2 }}>vs. previous week</div>
-                      </div>
-                      <Sparkline data={s.trend} />
-                    </div>
-                    <div className="flex gap-2" style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10 }}>
-                      <div style={{ flex: 1 }}>
-                        <div className="font-mono font-bold" style={{ fontSize: 17 }}>{fmt(s.sevenDay)} <span style={{ fontSize: 11, color: C.faint, fontWeight: 400 }}>{s.unit}</span></div>
-                        <div style={{ fontSize: 10.5, color: C.muted, letterSpacing: 0.4 }}>7-DAY AVG</div>
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div className="font-mono font-bold" style={{ fontSize: 17 }}>{fmt(s.monthly)} <span style={{ fontSize: 11, color: C.faint, fontWeight: 400 }}>{s.unit}</span></div>
-                        <div style={{ fontSize: 10.5, color: C.muted, letterSpacing: 0.4 }}>30-DAY AVG</div>
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div className="font-mono font-bold" style={{ fontSize: 17 }}>{fmt(s.last?.weight)} <span style={{ fontSize: 11, color: C.faint, fontWeight: 400 }}>{s.unit}</span></div>
-                        <div style={{ fontSize: 10.5, color: C.muted, letterSpacing: 0.4 }}>LATEST</div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-
-        {/* ---------------- HISTORY ---------------- */}
-        {tab === 'history' && (
-          <div>
-            {workouts.length === 0 ? (
-              <div style={{ ...card, padding: 28, textAlign: 'center' }}>
-                <ClipboardList size={26} color={C.faint} style={{ margin: '0 auto 10px' }} />
-                <div style={{ color: C.muted, fontSize: 14 }}>No sessions logged.</div>
-                <div style={{ color: C.faint, fontSize: 12, marginTop: 4 }}>Head to Log to record your first workout.</div>
-              </div>
-            ) : (
-              [...workouts].sort((a, b) => dateToMs(b.date) - dateToMs(a.date)).map((w) => (
-                <div key={w.id} style={{ ...card, padding: 13, marginBottom: 10 }}>
-                  <div className="flex items-center justify-between gap-2" style={{ marginBottom: 8 }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{prettyDate(w.date)}</div>
-                      <div className="font-mono" style={{ fontSize: 11.5, color: C.accent }}>{w.entries.length} exercise{w.entries.length !== 1 ? 's' : ''}</div>
-                    </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => editSession(w)} className="inline-flex items-center justify-center" style={{ width: 32, height: 32, borderRadius: 8, background: C.surface2, color: C.muted }} aria-label="Edit session"><Pencil size={15} /></button>
-                      <button onClick={() => deleteSession(w.id)} className="inline-flex items-center justify-center" style={{ width: 32, height: 32, borderRadius: 8, background: C.surface2, color: C.down }} aria-label="Delete session"><Trash2 size={15} /></button>
-                    </div>
-                  </div>
-                  <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 8 }}>
-                    {w.entries.map((e) => (
-                      <div key={e.exercise} className="flex items-center justify-between" style={{ padding: '3px 0', fontSize: 13 }}>
-                        <span style={{ color: C.muted }}>{e.exercise}</span>
-                        <span className="font-mono" style={{ color: C.text }}>{fmt(e.weight)} {e.unit}{e.reps ? <span style={{ color: C.faint }}> × {e.reps}</span> : ''}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))
-            )}
-
-            {workouts.length > 0 && (
-              <div style={{ marginTop: 18, textAlign: 'center' }}>
-                {confirmReset ? (
-                  <div style={{ ...card, padding: 14 }}>
-                    <div style={{ fontSize: 13, color: C.text, marginBottom: 10 }}>Delete every logged session? This can't be undone.</div>
-                    <div className="flex gap-2">
-                      <button onClick={() => setConfirmReset(false)} className="flex-1" style={{ padding: '10px', borderRadius: 9, background: C.surface2, color: C.text, fontSize: 13, fontWeight: 600 }}>Keep my data</button>
-                      <button onClick={resetAll} className="flex-1" style={{ padding: '10px', borderRadius: 9, background: C.down, color: C.onAccent, fontSize: 13, fontWeight: 700 }}>Delete all</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button onClick={() => setConfirmReset(true)} style={{ fontSize: 12, color: C.faint, padding: 8 }}>Reset all data</button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: C.surface, borderTop: `1px solid ${C.line}` }}>
-        <div className="flex" style={{ maxWidth: 540, margin: '0 auto' }}>
-          {TABS.map((t) => {
-            const active = tab === t.id; const Icon = t.icon;
-            return (
-              <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 inline-flex flex-col items-center justify-center gap-1" style={{ padding: '9px 0', color: active ? C.accent : C.muted, transition: 'color .15s' }}>
-                <Icon size={20} strokeWidth={active ? 2.4 : 2} />
-                <span style={{ fontSize: 11, fontWeight: active ? 700 : 500 }}>{t.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+<script>
+/* ---- home-screen icon (generated, no external files) ---- */
+(function(){
+  function rr(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath();}
+  function mk(s){
+    var c=document.createElement('canvas');c.width=s;c.height=s;var x=c.getContext('2d');
+    rr(x,0,0,s,s,s*0.22);x.fillStyle='#2563EB';x.fill();
+    x.strokeStyle='#fff';x.lineCap='round';var y=s*0.5;
+    x.lineWidth=s*0.06;x.beginPath();x.moveTo(s*0.3,y);x.lineTo(s*0.7,y);x.stroke();
+    x.lineWidth=s*0.055;[0.27,0.73].forEach(function(px){x.beginPath();x.moveTo(s*px,y-s*0.12);x.lineTo(s*px,y+s*0.12);x.stroke();});
+    [0.21,0.79].forEach(function(px){x.beginPath();x.moveTo(s*px,y-s*0.075);x.lineTo(s*px,y+s*0.075);x.stroke();});
+    return c.toDataURL('image/png');
+  }
+  try{
+    var a=document.createElement('link');a.rel='apple-touch-icon';a.href=mk(180);document.head.appendChild(a);
+    var f=document.createElement('link');f.rel='icon';f.href=mk(64);document.head.appendChild(f);
+    var m={name:'IRONLOG',short_name:'IRONLOG',display:'standalone',background_color:'#F4F7FC',theme_color:'#F4F7FC',start_url:'.',icons:[{src:mk(192),sizes:'192x192',type:'image/png'},{src:mk(512),sizes:'512x512',type:'image/png'}]};
+    var mb=new Blob([JSON.stringify(m)],{type:'application/manifest+json'});var ml=document.createElement('link');ml.rel='manifest';ml.href=URL.createObjectURL(mb);document.head.appendChild(ml);
+  }catch(e){}
+})();
 </script>
 </body>
 </html>
