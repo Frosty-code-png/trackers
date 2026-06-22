@@ -134,9 +134,6 @@
 </style>
 </head>
 <body>
-<div style="position:sticky;top:0;z-index:99999;display:flex;align-items:center;padding:max(8px,env(safe-area-inset-top)) 12px 8px;background:rgba(249,251,251,.94);-webkit-backdrop-filter:saturate(1.1) blur(8px);backdrop-filter:saturate(1.1) blur(8px);border-bottom:1px solid rgba(16,38,46,.08);">
-<a href="index.html" style="display:inline-flex;align-items:center;gap:6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;font-size:14px;font-weight:600;color:#16242B;text-decoration:none;padding:6px 10px 6px 6px;border-radius:10px;">\u2039 All trackers</a>
-</div>
 <div class="wrap" id="app"></div>
 
 <script>
@@ -248,7 +245,7 @@ function chartSVG(asc){
 
 /* ---- views ---- */
 function topbarHTML(){
-  return '<div class="topbar"><div class="mark">Tideline<span class="dot">.</span></div>'
+  return '<div class="topbar"><a href="index.html" class="navlink" style="color:var(--ink-soft)">&lsaquo; Back</a><div class="mark">Tideline<span class="dot">.</span></div>'
     + (ui.view==='log'
         ? '<button class="navlink" data-action="gotoStats">Stats &amp; history →</button>'
         : '<button class="navlink" data-action="gotoLog">← Log weight</button>')
