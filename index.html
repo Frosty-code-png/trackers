@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#ECF0F1" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Trackers" />
+<title>My Trackers</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  :root{
+    --bg:#ECF0F1; --surface:#FFFFFF; --ink:#16242B; --muted:#5E707A; --line:#DCE3E6;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;
+    --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  body{
+    font-family:var(--sans); color:var(--ink);
+    background:radial-gradient(120% 70% at 50% -10%, #F4F8F8 0%, transparent 60%), var(--bg);
+    background-attachment:fixed; min-height:100vh; -webkit-font-smoothing:antialiased;
+    padding:max(28px,env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:460px;margin:0 auto;}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 4px;}
+  .title{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:0 0 22px;}
+  a.tile{
+    display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;
+    background:var(--surface);border:1px solid var(--line);border-radius:18px;
+    padding:16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(16,38,46,.04),0 8px 20px rgba(16,38,46,.05);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  a.tile:active{transform:scale(.985);}
+  a.tile:focus-visible{outline:2px solid var(--ink);outline-offset:3px;}
+  .chip{width:52px;height:52px;border-radius:15px;flex:none;display:grid;place-items:center;font-size:26px;}
+  .tile-txt{flex:1;min-width:0;}
+  .tile-name{font-size:17px;font-weight:700;letter-spacing:-.01em;}
+  .tile-sub{font-size:13px;color:var(--muted);margin-top:2px;}
+  .chev{color:var(--muted);font-size:20px;flex:none;}
+  .foot{text-align:center;font-size:12.5px;color:var(--muted);margin-top:22px;line-height:1.5;padding:0 8px;}
+  .foot b{color:var(--ink);}
+  @media (prefers-reduced-motion: reduce){ a.tile{transition:none;} }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="eyebrow">Daily</p>
+    <h1 class="title">Your trackers</h1>
+
+    <a class="tile" href="weight.html">
+      <div class="chip" style="background:#16302B;color:#E8A53C;">⚖️</div>
+      <div class="tile-txt">
+        <div class="tile-name">Weight</div>
+        <div class="tile-sub">Tideline · daily weigh-in &amp; averages</div>
+      </div>
+      <span class="chev">›</span>
+    </a>
+
+    <a class="tile" href="habits.html">
+      <div class="chip" style="background:#E6F5EF;color:#0C9E76;">✅</div>
+      <div class="tile-txt">
+        <div class="tile-name">Habits</div>
+        <div class="tile-sub">5 daily habits · streaks &amp; heatmap</div>
+      </div>
+      <span class="chev">›</span>
+    </a>
+
+    <a class="tile" href="gym.html">
+      <div class="chip" style="background:#E8EEFB;color:#2563EB;">🏋️</div>
+      <div class="tile-txt">
+        <div class="tile-name">Gym</div>
+        <div class="tile-sub">IRONLOG · log lifts &amp; track strength</div>
+      </div>
+      <span class="chev">›</span>
+    </a>
+
+    <p class="foot" id="hint">
+      Each tracker saves on this device automatically.<br>
+      <span id="installLine"><b>Tip:</b> Share → Add to Home Screen to keep this hub one tap away.</span>
+    </p>
+  </div>
+
+<script>
+  /* hide install tip once running as an installed app */
+  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  if (standalone) { var el = document.getElementById('installLine'); if (el) el.style.display = 'none'; }
+
+  /* home-screen icon (generated) */
+  (function(){
+    function rr(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath();}
+    function mk(s){
+      var c=document.createElement('canvas');c.width=s;c.height=s;var x=c.getContext('2d');
+      rr(x,0,0,s,s,s*0.22);x.fillStyle='#16242B';x.fill();
+      var g=s*0.16, q=s*0.30, cols=['#E8A53C','#0C9E76','#2563EB','#FFFFFF'];
+      var pos=[[q,q],[s-q,q],[q,s-q],[s-q,s-q]];
+      for(var i=0;i<4;i++){ x.fillStyle=cols[i]; x.beginPath(); x.arc(pos[i][0],pos[i][1],g*0.62,0,Math.PI*2); x.fill(); }
+      return c.toDataURL('image/png');
+    }
+    try{
+      var a=document.createElement('link');a.rel='apple-touch-icon';a.href=mk(180);document.head.appendChild(a);
+      var f=document.createElement('link');f.rel='icon';f.href=mk(64);document.head.appendChild(f);
+      var m={name:'My Trackers',short_name:'Trackers',display:'standalone',background_color:'#ECF0F1',theme_color:'#ECF0F1',start_url:'.',icons:[{src:mk(192),sizes:'192x192',type:'image/png'},{src:mk(512),sizes:'512x512',type:'image/png'}]};
+      var mb=new Blob([JSON.stringify(m)],{type:'application/manifest+json'});var ml=document.createElement('link');ml.rel='manifest';ml.href=URL.createObjectURL(mb);document.head.appendChild(ml);
+    }catch(e){}
+  })();
+</script>
+</body>
+</html>

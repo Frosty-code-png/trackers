@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#D8E2DF" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Tideline" />
+<title>Tideline</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --canvas:#D8E2DF; --surface:#FBFCFA; --ink:#16302C; --ink-soft:#5E6F6B;
+    --signal:#C9821E; --signal-bright:#E8A53C; --line:#C9D6D2;
+    --screen:#14302B; --screen-text:#F4F7F5; --screen-dim:#9DB3AE;
+    --mono: ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+    --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;
+  }
+  html,body { margin:0; padding:0; }
+  body {
+    font-family: var(--sans); color: var(--ink); background: var(--canvas);
+    min-height: 100vh; -webkit-font-smoothing: antialiased;
+    padding: max(16px, env(safe-area-inset-top)) 14px calc(48px + env(safe-area-inset-bottom));
+  }
+  .wrap { max-width: 460px; margin: 0 auto; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .mark { font-weight:700; font-size:18px; letter-spacing:-0.02em; }
+  .mark .dot { color: var(--signal); }
+  .navlink { font-size:13px; font-weight:600; color:var(--signal); background:none; border:none; cursor:pointer; padding:8px 0; font-family:var(--sans); }
+  .navlink:focus-visible { outline:2px solid var(--signal); outline-offset:2px; border-radius:4px; }
+
+  /* LOG VIEW */
+  .logview { padding-top:26px; }
+  .today-date { text-align:center; font-size:15px; color:var(--ink-soft); margin-bottom:18px; }
+  .log-card { background:var(--screen); border-radius:20px; padding:32px 22px 26px; box-shadow: inset 0 2px 16px rgba(0,0,0,.32); text-align:center; }
+  .big-input-row { display:flex; align-items:baseline; justify-content:center; gap:8px; margin-bottom:24px; }
+  .big-input { width:210px; max-width:62vw; font-family:var(--mono); font-size:62px; font-weight:600; text-align:center;
+    color:var(--screen-text); background:transparent; border:none; border-bottom:2px solid var(--screen-dim);
+    padding:2px 0 6px; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; }
+  .big-input::placeholder { color:#36544c; }
+  .big-input:focus { outline:none; border-bottom-color:var(--signal-bright); }
+  .big-unit { font-family:var(--mono); font-size:22px; color:var(--signal-bright); font-weight:600; }
+  .big-btn { width:100%; font-family:var(--sans); font-size:17px; font-weight:700; color:#fff;
+    background:var(--signal); border:none; border-radius:14px; padding:18px; cursor:pointer; }
+  .big-btn:active { background:#b3711a; }
+  .big-btn:focus-visible { outline:2px solid var(--signal-bright); outline-offset:3px; }
+  .link-btn { font-size:13px; color:var(--screen-dim); background:none; border:none; cursor:pointer; margin-top:14px; padding:8px; font-family:var(--sans); }
+  .logged { padding:4px 0; }
+  .logged-check { font-size:14px; color:var(--signal-bright); letter-spacing:0.03em; margin-bottom:10px; }
+  .logged-num { font-family:var(--mono); font-size:60px; font-weight:600; color:var(--screen-text); letter-spacing:-0.03em; font-variant-numeric:tabular-nums; }
+  .logged-num span { font-size:22px; color:var(--signal-bright); margin-left:4px; }
+  .glance { text-align:center; font-size:14px; color:var(--ink-soft); margin-top:22px; }
+  .glance b { font-family:var(--mono); color:var(--ink); }
+  .err-c { text-align:center; color:#ffb4a0; font-size:13px; margin-top:14px; }
+  .toast { text-align:center; margin-top:16px; font-size:14px; font-weight:600; color:#2f7d52; }
+  .install-hint { text-align:center; font-size:12.5px; color:var(--ink-soft); margin-top:26px; line-height:1.5; padding:0 8px; }
+
+  /* SHARED */
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:12px; }
+  .stats-head { text-align:center; font-size:13px; color:var(--ink-soft); margin:18px 0 14px; }
+  .stats-head b { font-family:var(--mono); color:var(--ink); font-size:15px; }
+  .chart-card { padding:14px 8px 10px; }
+  .chart-label { font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); padding:0 8px 6px; }
+  .chart-empty { color:var(--ink-soft); font-size:13px; text-align:center; padding:30px 8px; }
+  .chart-svg { width:100%; height:auto; display:block; }
+  .chart-svg .grid { stroke:#E0E8E5; stroke-width:1; }
+  .chart-svg .line { fill:none; stroke:#16302C; stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
+  .chart-svg .dot { fill:#16302C; }
+  .chart-svg .last { fill:#C9821E; stroke:#fff; stroke-width:1.5; }
+  .chart-svg .lbl { fill:#5E6F6B; font-size:10px; font-family:var(--sans); }
+
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  .stat { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:15px; }
+  .stat-label { font-size:10.5px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-soft); }
+  .stat-sub { font-size:10.5px; color:var(--ink-soft); margin-top:1px; }
+  .stat-num { font-family:var(--mono); font-size:28px; font-weight:600; letter-spacing:-0.02em; margin-top:9px; font-variant-numeric:tabular-nums; }
+  .stat-num .u { font-size:14px; color:var(--ink-soft); margin-left:3px; }
+  .stat-num.muted { color:var(--ink-soft); font-size:20px; }
+  .delta { font-size:12.5px; color:var(--ink-soft); margin-top:7px; display:inline-flex; align-items:center; gap:5px; }
+  .delta .arw { color:var(--ink); font-size:11px; }
+  .delta.none { font-style:italic; }
+
+  .sec-head { display:flex; align-items:center; justify-content:space-between; width:100%; background:none; border:none; padding:0; cursor:pointer; color:var(--ink); font-family:var(--sans); }
+  .sec-head:focus-visible { outline:2px solid var(--signal); outline-offset:3px; border-radius:4px; }
+  .sec-title { font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px; }
+  .sec-count { font-size:11px; color:var(--ink-soft); font-weight:500; }
+  .chev { color:var(--ink-soft); font-size:13px; transition:transform .18s ease; }
+  .chev.open { transform:rotate(90deg); }
+  .sec-body { margin-top:14px; }
+
+  .brow { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-top:1px solid var(--line); }
+  .brow:first-child { border-top:none; }
+  .brow-l { font-size:13px; }
+  .brow-r { display:flex; align-items:baseline; gap:12px; }
+  .brow-w { font-family:var(--mono); font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .brow-d { font-size:12px; color:var(--ink-soft); min-width:74px; text-align:right; }
+  .brow-d .arw { color:var(--ink); }
+
+  .hrow { display:flex; align-items:center; gap:10px; padding:11px 0; border-top:1px solid var(--line); }
+  .hrow:first-child { border-top:none; }
+  .hrow-date { font-size:13px; flex:1; }
+  .hrow-w { font-family:var(--mono); font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .hrow-acts { display:flex; gap:6px; }
+  .icon-btn { font-size:12px; color:var(--ink-soft); background:none; border:1px solid var(--line); border-radius:8px; padding:6px 10px; cursor:pointer; min-height:34px; font-family:var(--sans); }
+  .icon-btn:active { background:#f2f5f3; color:var(--ink); }
+  .icon-btn.danger:active { color:#b3300f; border-color:#e3b3a6; }
+  .icon-btn:focus-visible { outline:2px solid var(--signal); outline-offset:1px; }
+  .edit-inline { display:flex; gap:6px; align-items:center; flex:1; }
+  .edit-inline input { max-width:110px; padding:7px 9px; font-size:14px; font-family:var(--mono); color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:8px; }
+  .edit-inline input:focus-visible { outline:2px solid var(--signal); outline-offset:1px; }
+  .confirm { display:flex; gap:6px; align-items:center; }
+  .confirm-q { font-size:12px; color:#b3300f; }
+  .show-all { margin-top:10px; font-size:12.5px; color:var(--signal); background:none; border:none; cursor:pointer; padding:4px 0; font-weight:600; font-family:var(--sans); }
+  .show-all:focus-visible { outline:2px solid var(--signal); outline-offset:2px; border-radius:4px; }
+
+  .backup-note { font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:12px; }
+  .backup-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .btn { font-family:var(--sans); font-size:13px; font-weight:600; border-radius:10px; padding:9px 13px; border:1px solid transparent; cursor:pointer; }
+  .btn-primary { background:var(--signal); color:#fff; }
+  .btn-primary:active { background:#b3711a; }
+  .btn-ghost { background:#fff; color:var(--ink); border-color:var(--line); }
+  .btn-ghost:active { background:#f2f5f3; }
+  .btn:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+  .ta { width:100%; font-family:var(--mono); font-size:11.5px; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px; min-height:80px; resize:vertical; }
+  .ta:focus-visible { outline:2px solid var(--signal); outline-offset:1px; }
+  .hint { font-size:12.5px; color:var(--ink-soft); }
+  .empty-state { text-align:center; padding:8px 4px; color:var(--ink-soft); font-size:13.5px; line-height:1.5; }
+  .warn-banner { border:1px solid #e3b3a6; background:#fdf3f0; border-radius:12px; padding:12px; margin-bottom:12px; font-size:12.5px; color:#b3300f; line-height:1.5; }
+
+  @media (prefers-reduced-motion: reduce) { .chev { transition:none; } }
+  @media (max-width:360px) { .stats { grid-template-columns:1fr; } .big-input { font-size:52px; } .logged-num { font-size:52px; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+/* =========================================================================
+   ⚠️  DATA SAFETY — DO NOT CHANGE THE STORAGE KEY BELOW WHEN EDITING  ⚠️
+   All weight data lives in the browser under this key. Changing it OR
+   clearing it would lose the user's history. Keep it exactly as-is.
+   ========================================================================= */
+var KEY = 'tideline-weight-entries-v1';
+
+/* ---- date helpers ---- */
+var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var DOWF=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var MONF=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function pad(n){return String(n).padStart(2,'0');}
+function toStr(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function fromStr(s){var p=s.split('-').map(Number);return new Date(p[0],p[1]-1,p[2]);}
+function todayStr(){return toStr(new Date());}
+function addDays(s,n){var d=fromStr(s);d.setDate(d.getDate()+n);return toStr(d);}
+function mondayOf(s){var d=fromStr(s);var wd=(d.getDay()+6)%7;d.setDate(d.getDate()-wd);return toStr(d);}
+function monthKey(s){return s.slice(0,7);}
+function lastMonthKey(){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+pad(d.getMonth()+1);}
+function fmtShort(s){var d=fromStr(s);return DOW[d.getDay()]+' '+MON[d.getMonth()]+' '+d.getDate();}
+function fmtFull(s){var d=fromStr(s);return DOWF[d.getDay()]+', '+MONF[d.getMonth()]+' '+d.getDate();}
+function fmtMD(s){var d=fromStr(s);return (d.getMonth()+1)+'/'+d.getDate();}
+function fmtMonth(k){var p=k.split('-');return MON[Number(p[1])-1]+' '+p[0];}
+function fmtWeek(m){var a=fromStr(m),b=fromStr(addDays(m,6));return MON[a.getMonth()]+' '+a.getDate()+' – '+MON[b.getMonth()]+' '+b.getDate();}
+function mean(a){return a.length? a.reduce(function(x,y){return x+y;},0)/a.length : null;}
+function rangeAvg(es,start,end){return mean(es.filter(function(e){return e.date>=start&&e.date<=end;}).map(function(e){return e.weight;}));}
+function sortDesc(a){return a.slice().sort(function(x,y){return x.date<y.date?1:(x.date>y.date?-1:0);});}
+
+/* ---- storage ---- */
+var storageWorks=true;
+try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); }catch(e){ storageWorks=false; }
+function load(){ try{ var r=localStorage.getItem(KEY); return r?sortDesc(JSON.parse(r)):[]; }catch(e){ return []; } }
+function save(arr){ try{ localStorage.setItem(KEY, JSON.stringify(arr)); saveFailed=false; }catch(e){ saveFailed=true; } }
+
+/* ---- state ---- */
+var entries = load();
+var saveFailed = false;
+var ui = { view:'log', editingToday:false, editing:null, confirmDel:null,
+  openWeek:true, openMonth:true, openHist:true, openBackup:false,
+  showAllHist:false, showAllWeek:false, showAllMonth:false, justLogged:false, logErr:'', restoreMsg:'' };
+var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+
+/* ---- mutations ---- */
+function upsert(date,weight){ entries = sortDesc(entries.filter(function(e){return e.date!==date;}).concat([{date:date,weight:weight}])); save(entries); }
+function removeEntry(date){ entries = entries.filter(function(e){return e.date!==date;}); save(entries); }
+
+/* ---- stats ---- */
+function getStats(){
+  if(entries.length===0) return null;
+  var t=todayStr();
+  var asc=entries.slice().sort(function(a,b){return a.date<b.date?-1:1;});
+  var latest=asc[asc.length-1], earliest=asc[0];
+  var avg7=rangeAvg(entries,addDays(t,-6),t);
+  var prev7=rangeAvg(entries,addDays(t,-13),addDays(t,-7));
+  var weekDelta=(avg7!=null&&prev7!=null)?avg7-prev7:null;
+  var curM=monthKey(t), prevM=lastMonthKey();
+  var avgM=mean(entries.filter(function(e){return monthKey(e.date)===curM;}).map(function(e){return e.weight;}));
+  var avgPrevM=mean(entries.filter(function(e){return monthKey(e.date)===prevM;}).map(function(e){return e.weight;}));
+  var monthDelta=(avgM!=null&&avgPrevM!=null)?avgM-avgPrevM:null;
+  var net=latest.weight-earliest.weight;
+  var wMap={}; entries.forEach(function(e){var k=mondayOf(e.date);(wMap[k]=wMap[k]||[]).push(e.weight);});
+  var weeks=Object.keys(wMap).sort().reverse().map(function(k){return {key:k,avg:mean(wMap[k])};});
+  weeks.forEach(function(w,i){var o=weeks[i+1];w.delta=o?w.avg-o.avg:null;});
+  var mMap={}; entries.forEach(function(e){var k=monthKey(e.date);(mMap[k]=mMap[k]||[]).push(e.weight);});
+  var months=Object.keys(mMap).sort().reverse().map(function(k){return {key:k,avg:mean(mMap[k])};});
+  months.forEach(function(m,i){var o=months[i+1];m.delta=o?m.avg-o.avg:null;});
+  return {latest:latest,earliest:earliest,avg7:avg7,weekDelta:weekDelta,avgM:avgM,monthDelta:monthDelta,net:net,weeks:weeks,months:months,asc:asc,count:entries.length,curM:curM};
+}
+
+/* ---- render helpers ---- */
+function deltaHTML(d,label){
+  if(d==null) return '<span class="delta none">— '+(label?'need more data':'—')+'</span>';
+  var flat=Math.abs(d)<0.05, arw=flat?'→':(d>0?'▲':'▼');
+  return '<span class="delta"><span class="arw">'+arw+'</span>'+Math.abs(d).toFixed(1)+' kg'+(label?(' '+label):'')+'</span>';
+}
+function deltaCell(d){
+  if(d==null) return '—';
+  var flat=Math.abs(d)<0.05, arw=flat?'→':(d>0?'▲':'▼');
+  return '<span class="arw">'+arw+'</span> '+Math.abs(d).toFixed(1)+' kg';
+}
+function chartSVG(asc){
+  if(asc.length<2) return '<div class="chart-empty">Log at least two days to see your trend.</div>';
+  var W=340,H=180,pL=30,pR=12,pT=12,pB=24;
+  var ws=asc.map(function(e){return e.weight;});
+  var mn=Math.min.apply(null,ws), mx=Math.max.apply(null,ws);
+  if(mn===mx){mn-=1;mx+=1;}else{var p=(mx-mn)*0.18;mn-=p;mx+=p;}
+  var n=asc.length;
+  function X(i){return pL+(i/(n-1))*(W-pL-pR);}
+  function Y(w){return pT+(1-(w-mn)/(mx-mn))*(H-pT-pB);}
+  var pts=asc.map(function(e,i){return X(i).toFixed(1)+','+Y(e.weight).toFixed(1);}).join(' ');
+  var last=asc[n-1];
+  var dots='';
+  asc.forEach(function(e,i){dots+='<circle class="dot" cx="'+X(i).toFixed(1)+'" cy="'+Y(e.weight).toFixed(1)+'" r="2"><title>'+fmtShort(e.date)+' · '+e.weight.toFixed(1)+' kg</title></circle>';});
+  var idxs=[0,Math.floor((n-1)/2),n-1].filter(function(v,i,a){return a.indexOf(v)===i;});
+  var xl='';
+  idxs.forEach(function(i){var anchor=i===0?'start':(i===n-1?'end':'middle');xl+='<text class="lbl" x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="'+anchor+'">'+fmtMD(asc[i].date)+'</text>';});
+  return '<svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Weight trend">'
+    +'<line class="grid" x1="'+pL+'" y1="'+pT+'" x2="'+(W-pR)+'" y2="'+pT+'"/>'
+    +'<line class="grid" x1="'+pL+'" y1="'+(H-pB)+'" x2="'+(W-pR)+'" y2="'+(H-pB)+'"/>'
+    +'<text class="lbl" x="'+(pL-5)+'" y="'+(pT+4)+'" text-anchor="end">'+mx.toFixed(0)+'</text>'
+    +'<text class="lbl" x="'+(pL-5)+'" y="'+(H-pB+4)+'" text-anchor="end">'+mn.toFixed(0)+'</text>'
+    +'<polyline class="line" points="'+pts+'"/>'+dots
+    +'<circle class="last" cx="'+X(n-1).toFixed(1)+'" cy="'+Y(last.weight).toFixed(1)+'" r="4"/>'+xl+'</svg>';
+}
+
+/* ---- views ---- */
+function topbarHTML(){
+  return '<div class="topbar"><div class="mark">Tideline<span class="dot">.</span></div>'
+    + (ui.view==='log'
+        ? '<button class="navlink" data-action="gotoStats">Stats &amp; history →</button>'
+        : '<button class="navlink" data-action="gotoLog">← Log weight</button>')
+    + '</div>';
+}
+function bannerHTML(){
+  if(!storageWorks) return '<div class="warn-banner">This browser isn\'t saving data (often private/incognito mode). Use a normal tab, and export a backup from Stats to be safe.</div>';
+  if(saveFailed) return '<div class="warn-banner">Couldn\'t save your last change. Try again, and keep a backup from Stats.</div>';
+  return '';
+}
+function logView(){
+  var s=getStats();
+  var today=entries.filter(function(e){return e.date===todayStr();})[0];
+  var inner;
+  if(today && !ui.editingToday){
+    inner='<div class="logged"><div class="logged-check">✓ logged today</div>'
+      +'<div class="logged-num">'+today.weight.toFixed(1)+'<span>kg</span></div>'
+      +'<button class="link-btn" data-action="editToday">tap to change</button></div>';
+  } else {
+    inner='<div class="big-input-row"><input class="big-input" id="logInput" inputmode="decimal" placeholder="0.0" value="'+(ui.editingToday&&today?today.weight:'')+'" /><span class="big-unit">kg</span></div>'
+      +'<button class="big-btn" data-action="logToday">'+(today?'Update today':'Log today')+'</button>'
+      +(today?'<button class="link-btn" data-action="cancelToday">cancel</button>':'')
+      +(ui.logErr?'<div class="err-c">'+ui.logErr+'</div>':'');
+  }
+  return '<div class="logview"><div class="today-date">'+fmtFull(todayStr())+'</div>'
+    +'<div class="log-card">'+inner+'</div>'
+    +((s&&s.avg7!=null)?'<div class="glance">7-day average · <b>'+s.avg7.toFixed(1)+' kg</b></div>':'')
+    +(ui.justLogged?'<div class="toast">Saved ✓</div>':'')
+    +(!isStandalone?'<div class="install-hint">Tip: tap your browser\'s Share button → <b>Add to Home Screen</b> to use this like an app.</div>':'')
+    +'</div>';
+}
+function section(title,count,openKey,toggle,body){
+  return '<div class="card"><button class="sec-head" data-action="'+toggle+'"><span class="sec-title">'+title+(count!=null?' <span class="sec-count">'+count+'</span>':'')+'</span><span class="chev '+(ui[openKey]?'open':'')+'">▶</span></button>'
+    +(ui[openKey]?('<div class="sec-body">'+body+'</div>'):'')+'</div>';
+}
+function statsView(){
+  var s=getStats();
+  if(!s) return '<div class="card"><div class="empty-state">No data yet. Log a weight first, then your averages, trends, and history show up here.</div></div>';
+  var head='<div class="stats-head">Latest <b>'+s.latest.weight.toFixed(1)+' kg</b> · '+fmtShort(s.latest.date)+' · '+s.count+(s.count===1?' entry':' entries')
+    +(s.count>1?(' · net '+(s.net>0?'▲':(s.net<0?'▼':'→'))+' '+Math.abs(s.net).toFixed(1)+' kg'):'')+'</div>';
+  var chart='<div class="card chart-card"><div class="chart-label">Trend</div>'+chartSVG(s.asc)+'</div>';
+  var statCards='<div class="stats">'
+    +'<div class="stat"><div class="stat-label">7-day average</div><div class="stat-sub">last 7 days</div>'
+      +(s.avg7!=null?'<div class="stat-num">'+s.avg7.toFixed(1)+'<span class="u">kg</span></div>':'<div class="stat-num muted">—</div>')
+      +'<div>'+deltaHTML(s.weekDelta,'vs prev week')+'</div></div>'
+    +'<div class="stat"><div class="stat-label">Monthly average</div><div class="stat-sub">'+fmtMonth(s.curM)+'</div>'
+      +(s.avgM!=null?'<div class="stat-num">'+s.avgM.toFixed(1)+'<span class="u">kg</span></div>':'<div class="stat-num muted">—</div>')
+      +'<div>'+deltaHTML(s.monthDelta,'vs last month')+'</div></div></div>';
+
+  var wv=ui.showAllWeek?s.weeks:s.weeks.slice(0,6);
+  var weekBody=wv.map(function(w){return '<div class="brow"><span class="brow-l">'+fmtWeek(w.key)+'</span><span class="brow-r"><span class="brow-w">'+w.avg.toFixed(1)+'</span><span class="brow-d">'+deltaCell(w.delta)+'</span></span></div>';}).join('')
+    +(s.weeks.length>6?'<button class="show-all" data-action="showAllWeek">'+(ui.showAllWeek?'Show fewer':'Show all '+s.weeks.length+' weeks')+'</button>':'');
+
+  var mv=ui.showAllMonth?s.months:s.months.slice(0,6);
+  var monthBody=mv.map(function(m){return '<div class="brow"><span class="brow-l">'+fmtMonth(m.key)+'</span><span class="brow-r"><span class="brow-w">'+m.avg.toFixed(1)+'</span><span class="brow-d">'+deltaCell(m.delta)+'</span></span></div>';}).join('')
+    +(s.months.length>6?'<button class="show-all" data-action="showAllMonth">'+(ui.showAllMonth?'Show fewer':'Show all '+s.months.length+' months')+'</button>':'');
+
+  var hv=ui.showAllHist?entries:entries.slice(0,8);
+  var histBody=hv.map(function(e){
+    if(ui.editing===e.date){
+      return '<div class="hrow"><div class="edit-inline"><input id="editInput" inputmode="decimal" value="'+e.weight+'" /><button class="icon-btn" data-action="saveRow" data-date="'+e.date+'">Save</button><button class="icon-btn" data-action="cancelRow">Cancel</button></div></div>';
+    }
+    var right = (ui.confirmDel===e.date)
+      ? '<span class="confirm"><span class="confirm-q">Delete?</span><button class="icon-btn danger" data-action="confirmDel" data-date="'+e.date+'">Yes</button><button class="icon-btn" data-action="cancelDel">No</button></span>'
+      : '<span class="hrow-acts"><button class="icon-btn" data-action="editRow" data-date="'+e.date+'">Edit</button><button class="icon-btn danger" data-action="askDel" data-date="'+e.date+'">Delete</button></span>';
+    return '<div class="hrow"><span class="hrow-date">'+fmtShort(e.date)+'</span><span class="hrow-w">'+e.weight.toFixed(1)+' kg</span>'+right+'</div>';
+  }).join('')
+    +(entries.length>8?'<button class="show-all" data-action="showAllHist">'+(ui.showAllHist?'Show fewer':'Show all '+entries.length+' entries')+'</button>':'');
+
+  var backupBody='<div class="backup-note">Your data saves automatically in this browser and is never cleared on its own. This is a spare copy. Restoring <b>merges</b> entries — it never erases what\'s here.</div>'
+    +'<div class="backup-actions"><button class="btn btn-ghost" data-action="export">Download backup</button><button class="btn btn-ghost" data-action="copy">Copy data</button><button class="btn btn-primary" data-action="restore">Restore from text</button></div>'
+    +'<textarea class="ta" id="backupText" placeholder="Backup text appears here when you export — or paste a backup and tap Restore."></textarea>'
+    +(ui.restoreMsg?'<div class="hint" style="margin-top:8px">'+ui.restoreMsg+'</div>':'');
+
+  return head+chart+statCards
+    +section('Change by week',s.weeks.length,'openWeek','toggleWeek',weekBody)
+    +section('Change by month',s.months.length,'openMonth','toggleMonth',monthBody)
+    +section('History',entries.length,'openHist','toggleHist',histBody)
+    +section('Backup &amp; restore',null,'openBackup','toggleBackup',backupBody);
+}
+function render(){
+  var app=document.getElementById('app');
+  app.innerHTML = topbarHTML()+bannerHTML()+(ui.view==='log'?logView():statsView());
+  // preserve typed backup text across re-render is not needed; refocus inputs if editing
+  var li=document.getElementById('logInput'); if(li){ li.focus(); li.setSelectionRange(li.value.length,li.value.length); }
+  var ei=document.getElementById('editInput'); if(ei){ ei.focus(); ei.setSelectionRange(ei.value.length,ei.value.length); }
+}
+
+/* ---- actions ---- */
+function logToday(){
+  var v=parseFloat(document.getElementById('logInput').value);
+  if(isNaN(v)){ ui.logErr='Type your weight, e.g. 72.4'; render(); return; }
+  if(v<=0||v>600){ ui.logErr='That doesn\'t look like a weight in kg.'; render(); return; }
+  ui.logErr=''; ui.editingToday=false;
+  upsert(todayStr(), Math.round(v*10)/10);
+  ui.justLogged=true; render();
+  setTimeout(function(){ ui.justLogged=false; render(); }, 1600);
+}
+function saveRow(date){
+  var v=parseFloat(document.getElementById('editInput').value);
+  ui.editing=null;
+  if(!isNaN(v)&&v>0&&v<=600){ upsert(date, Math.round(v*10)/10); }
+  render();
+}
+function doExport(){
+  var json=JSON.stringify(entries,null,2);
+  render(); document.getElementById('backupText').value=json;
+  try{ var b=new Blob([json],{type:'application/json'}); var u=URL.createObjectURL(b); var a=document.createElement('a'); a.href=u; a.download='tideline-backup-'+todayStr()+'.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u); }catch(e){}
+}
+function doCopy(){
+  var json=JSON.stringify(entries,null,2);
+  render(); document.getElementById('backupText').value=json;
+  try{ navigator.clipboard.writeText(json); ui.restoreMsg='Copied to clipboard.'; }catch(e){ ui.restoreMsg='Couldn\'t copy — select the text above.'; }
+  render(); document.getElementById('backupText').value=json;
+}
+function doRestore(){
+  var txt=document.getElementById('backupText').value;
+  var parsed; try{ parsed=JSON.parse(txt); }catch(e){ ui.restoreMsg='That isn\'t valid backup text.'; render(); return; }
+  if(!Array.isArray(parsed)){ ui.restoreMsg='Backup must be a list of entries.'; render(); return; }
+  var clean=parsed.filter(function(e){ return e && typeof e.date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && typeof e.weight==='number' && e.weight>0; });
+  if(clean.length===0){ ui.restoreMsg='No valid entries found.'; render(); return; }
+  var map={}; entries.forEach(function(e){ map[e.date]=e.weight; });
+  clean.forEach(function(e){ map[e.date]=Math.round(e.weight*10)/10; });
+  entries=sortDesc(Object.keys(map).map(function(d){ return {date:d,weight:map[d]}; }));
+  save(entries);
+  ui.restoreMsg='Restored. '+entries.length+' entries total.'; render();
+}
+
+/* ---- event delegation ---- */
+document.getElementById('app').addEventListener('click', function(ev){
+  var t=ev.target.closest('[data-action]'); if(!t) return;
+  var a=t.getAttribute('data-action'); var date=t.getAttribute('data-date');
+  switch(a){
+    case 'gotoStats': ui.view='stats'; render(); break;
+    case 'gotoLog': ui.view='log'; render(); break;
+    case 'logToday': logToday(); break;
+    case 'editToday': ui.editingToday=true; ui.logErr=''; render(); break;
+    case 'cancelToday': ui.editingToday=false; ui.logErr=''; render(); break;
+    case 'toggleWeek': ui.openWeek=!ui.openWeek; render(); break;
+    case 'toggleMonth': ui.openMonth=!ui.openMonth; render(); break;
+    case 'toggleHist': ui.openHist=!ui.openHist; render(); break;
+    case 'toggleBackup': ui.openBackup=!ui.openBackup; render(); break;
+    case 'showAllWeek': ui.showAllWeek=!ui.showAllWeek; render(); break;
+    case 'showAllMonth': ui.showAllMonth=!ui.showAllMonth; render(); break;
+    case 'showAllHist': ui.showAllHist=!ui.showAllHist; render(); break;
+    case 'editRow': ui.editing=date; ui.confirmDel=null; render(); break;
+    case 'saveRow': saveRow(date); break;
+    case 'cancelRow': ui.editing=null; render(); break;
+    case 'askDel': ui.confirmDel=date; ui.editing=null; render(); break;
+    case 'confirmDel': removeEntry(date); ui.confirmDel=null; render(); break;
+    case 'cancelDel': ui.confirmDel=null; render(); break;
+    case 'export': doExport(); break;
+    case 'copy': doCopy(); break;
+    case 'restore': doRestore(); break;
+  }
+});
+document.getElementById('app').addEventListener('keydown', function(ev){
+  if(ev.key!=='Enter') return;
+  if(ev.target.id==='logInput'){ ev.preventDefault(); logToday(); }
+  else if(ev.target.id==='editInput'){ ev.preventDefault(); var row=ev.target.closest('.hrow'); saveRow(ui.editing); }
+});
+
+/* ---- home-screen icon (generated, no external files) ---- */
+function roundRect(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath();}
+function makeIcon(size){
+  var c=document.createElement('canvas'); c.width=size; c.height=size; var x=c.getContext('2d');
+  roundRect(x,0,0,size,size,size*0.22); x.fillStyle='#14302B'; x.fill();
+  x.strokeStyle='#E8A53C'; x.lineWidth=size*0.07; x.lineCap='round'; x.lineJoin='round';
+  x.beginPath();
+  var x0=size*0.18, x1=size*0.82, mid=size*0.54, amp=size*0.13, steps=48;
+  for(var i=0;i<=steps;i++){ var tt=i/steps; var px=x0+(x1-x0)*tt; var py=mid-Math.sin(tt*Math.PI*2)*amp; if(i===0)x.moveTo(px,py); else x.lineTo(px,py); }
+  x.stroke();
+  x.fillStyle='#F4F7F5'; x.beginPath(); x.arc(x1,mid,size*0.055,0,Math.PI*2); x.fill();
+  return c.toDataURL('image/png');
+}
+function buildIcons(){
+  try{
+    var apple=document.createElement('link'); apple.rel='apple-touch-icon'; apple.href=makeIcon(180); document.head.appendChild(apple);
+    var fav=document.createElement('link'); fav.rel='icon'; fav.href=makeIcon(64); document.head.appendChild(fav);
+    var manifest={ name:'Tideline', short_name:'Tideline', display:'standalone', background_color:'#D8E2DF', theme_color:'#D8E2DF', start_url:'.',
+      icons:[ {src:makeIcon(192),sizes:'192x192',type:'image/png'}, {src:makeIcon(512),sizes:'512x512',type:'image/png'} ] };
+    var mb=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+    var ml=document.createElement('link'); ml.rel='manifest'; ml.href=URL.createObjectURL(mb); document.head.appendChild(ml);
+  }catch(e){}
+}
+
+buildIcons();
+render();
+</script>
+</body>
+</html>
