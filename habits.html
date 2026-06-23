@@ -250,6 +250,9 @@
   .bbar{flex:1; height:8px; border-radius:99px; background:#EEF2F3; overflow:hidden;}
   .bfill{display:block; height:100%; border-radius:99px; transition:width .5s ease;}
   .bcount{font-size:13px; font-weight:800; color:var(--ink-soft); width:32px; text-align:right; flex:none; font-variant-numeric:tabular-nums;}
+  .daypick{display:flex; align-items:center; gap:8px; margin:-4px 0 20px;}
+  .daypick input{flex:1; min-width:0; font-family:inherit; font-size:13px; font-weight:600; color:var(--ink); background:rgba(255,255,255,.6); border:1px solid var(--line); border-radius:12px; padding:10px 12px; color-scheme:light;}
+  .today-btn{appearance:none; cursor:pointer; font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--water); border:none; border-radius:12px; padding:10px 15px;}
 </style>
 </head>
 <body>
@@ -272,6 +275,8 @@
     </header>
 
     <section class="week" id="week" aria-label="Last 7 days"></section>
+
+    <div class="daypick"><input type="date" id="dayInput" onchange="selectDate(this.value)" aria-label="Pick a day to edit"><button class="today-btn" id="todayBtn" onclick="goToday()">Today</button></div>
 
     <!-- Brush -->
     <article class="card" id="brushCard" style="--c:var(--brush)">
@@ -394,7 +399,7 @@
 
     <p class="foot">
       Saved automatically · resets each new day<br>
-      <button class="reset" onclick="resetToday()">Clear today</button>
+      <button class="reset" onclick="resetToday()">Clear this day</button>
     </p>
     </div><!-- /todayView -->
 
@@ -447,7 +452,7 @@
   const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-  let state = { all:{}, date:"", today:null };
+  let state = { all:{}, date:"", viewDate:"", today:null };
 
   function dateStr(d){
     const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
@@ -487,8 +492,9 @@
     }catch(e){ /* first run or storage unavailable — start fresh */ }
     state.all = (data && typeof data==="object") ? data : {};
     state.date = dateStr(new Date());
-    state.all[state.date] = ensure(state.all[state.date]);
-    state.today = state.all[state.date];
+    state.viewDate = state.date;
+    state.all[state.viewDate] = ensure(state.all[state.viewDate]);
+    state.today = state.all[state.viewDate];
   }
   async function save(){
     try{ await window.storage.set(KEY, JSON.stringify(state.all)); }
@@ -534,10 +540,20 @@
     }
   }
   function resetToday(){
-    state.all[state.date] = blankRec();
-    state.today = state.all[state.date];
+    state.all[state.viewDate] = blankRec();
+    state.today = state.all[state.viewDate];
     commit();
   }
+  function selectDate(d){
+    if(!d) return;
+    var todayK = dateStr(new Date());
+    if(d > todayK) d = todayK;
+    state.viewDate = d;
+    state.all[d] = ensure(state.all[d]);
+    state.today = state.all[d];
+    commit();
+  }
+  function goToday(){ selectDate(dateStr(new Date())); }
   function commit(){ render(); save(); }
 
   /* ---- Streak: consecutive fully-complete days ending today (or yesterday if today not done yet) ---- */
@@ -649,8 +665,13 @@
   /* ---- Render ---- */
   function render(){
     const now = new Date();
-    document.getElementById("eyebrow").textContent = DAY_NAMES[now.getDay()];
-    document.getElementById("date").textContent = `${MONTHS[now.getMonth()]} ${now.getDate()}`;
+    const todayK = dateStr(now);
+    const isToday = state.viewDate === todayK;
+    const vd = new Date(state.viewDate + "T00:00:00");
+    document.getElementById("eyebrow").textContent = (isToday ? "" : "Editing \u00b7 ") + DAY_NAMES[vd.getDay()];
+    document.getElementById("date").textContent = `${MONTHS[vd.getMonth()]} ${vd.getDate()}`;
+    var di=document.getElementById("dayInput"); if(di){ di.value=state.viewDate; di.max=todayK; }
+    var tb=document.getElementById("todayBtn"); if(tb){ tb.style.display = isToday ? "none" : ""; }
 
     const t = state.today;
 
@@ -722,7 +743,7 @@
     // Streak
     const s = streakCount();
     const sEl = document.getElementById("streak");
-    if(s>0){ sEl.classList.remove("hidden"); document.getElementById("streakNum").textContent = `${s} day${s>1?"s":""}`; }
+    if(isToday && s>0){ sEl.classList.remove("hidden"); document.getElementById("streakNum").textContent = `${s} day${s>1?"s":""}`; }
     else sEl.classList.add("hidden");
 
     renderWeek();
@@ -739,7 +760,9 @@
       const done = rec?doneCount(ensure(rec)):0;
       const complete = rec?isComplete(ensure(rec)):false;
       const cell=document.createElement("div");
-      cell.className="wk"+(i===0?" today":"");
+      cell.className="wk"+(key===state.viewDate?" today":"");
+      cell.style.cursor="pointer";
+      cell.addEventListener("click", function(){ selectDate(key); });
       const initials=["S","M","T","W","T","F","S"][d.getDay()];
       const ring=document.createElement("div");
       ring.className="ring";

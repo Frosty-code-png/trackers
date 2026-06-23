@@ -132,6 +132,19 @@
   @media (prefers-reduced-motion: reduce) { .chev { transition:none; } }
   @media (max-width:360px) { .stats { grid-template-columns:1fr; } .big-input { font-size:52px; } .logged-num { font-size:52px; } }
 </style>
+<style>
+  .past-wrap{ text-align:center; margin-top:14px; }
+  .pastlink{ font-size:13px; font-weight:600; color:var(--signal); background:none; border:none; cursor:pointer; padding:8px; font-family:var(--sans); }
+  .past-card{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px; text-align:left; }
+  .past-title{ font-size:13px; font-weight:600; color:var(--ink); margin-bottom:10px; }
+  .past-row{ display:flex; gap:8px; align-items:center; }
+  .past-input{ font-family:var(--mono); font-size:15px; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px; outline:none; color-scheme:light; }
+  .past-input:focus-visible{ outline:2px solid var(--signal); outline-offset:1px; }
+  .past-input.pd{ flex:1; min-width:0; }
+  .past-input.pw{ width:78px; text-align:center; }
+  .past-save{ font-family:var(--sans); font-size:14px; font-weight:700; color:#fff; background:var(--signal); border:none; border-radius:10px; padding:11px 14px; cursor:pointer; }
+  .past-note{ font-size:12px; color:var(--ink-soft); margin-top:9px; }
+</style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
@@ -177,7 +190,7 @@ var entries = load();
 var saveFailed = false;
 var ui = { view:'log', editingToday:false, editing:null, confirmDel:null,
   openWeek:true, openMonth:true, openHist:true, openBackup:false,
-  showAllHist:false, showAllWeek:false, showAllMonth:false, justLogged:false, logErr:'', restoreMsg:'' };
+  showAllHist:false, showAllWeek:false, showAllMonth:false, justLogged:false, logErr:'', restoreMsg:'', pastOpen:false, pastDate:'', pastErr:'' };
 var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
 
 /* ---- mutations ---- */
@@ -256,6 +269,18 @@ function bannerHTML(){
   if(saveFailed) return '<div class="warn-banner">Couldn\'t save your last change. Try again, and keep a backup from Stats.</div>';
   return '';
 }
+function pastSection(){
+  if(!ui.pastOpen){ return '<div class="past-wrap"><button class="pastlink" data-action="openPast">+ Log a past day</button></div>'; }
+  var d=ui.pastDate||addDays(todayStr(),-1);
+  var ex=entries.filter(function(e){return e.date===d;})[0];
+  return '<div class="past-wrap"><div class="past-card"><div class="past-title">Log a past day</div>'
+    +'<div class="past-row"><input type="date" id="pastDate" class="past-input pd" max="'+todayStr()+'" value="'+d+'">'
+    +'<input id="pastWeight" class="past-input pw" inputmode="decimal" placeholder="kg" value="'+(ex?ex.weight:'')+'">'
+    +'<button class="past-save" data-action="logPast">Save</button></div>'
+    +(ui.pastErr?'<div class="err-c" style="color:#b3300f">'+ui.pastErr+'</div>':'')
+    +(ex?'<div class="past-note">'+fmtFull(d)+' already has '+ex.weight.toFixed(1)+' kg, saving updates it.</div>':'<div class="past-note">Pick the day, type the weight, Save.</div>')
+    +'<button class="link-btn" data-action="closePast" style="color:var(--ink-soft)">cancel</button></div></div>';
+}
 function logView(){
   var s=getStats();
   var today=entries.filter(function(e){return e.date===todayStr();})[0];
@@ -272,6 +297,7 @@ function logView(){
   }
   return '<div class="logview"><div class="today-date">'+fmtFull(todayStr())+'</div>'
     +'<div class="log-card">'+inner+'</div>'
+    +pastSection()
     +((s&&s.avg7!=null)?'<div class="glance">7-day average · <b>'+s.avg7.toFixed(1)+' kg</b></div>':'')
     +(ui.justLogged?'<div class="toast">Saved ✓</div>':'')
     +(!isStandalone?'<div class="install-hint">Tip: tap your browser\'s Share button → <b>Add to Home Screen</b> to use this like an app.</div>':'')
@@ -335,6 +361,17 @@ function render(){
 }
 
 /* ---- actions ---- */
+function logPast(){
+  var dEl=document.getElementById('pastDate'); var wEl=document.getElementById('pastWeight');
+  var d=dEl?dEl.value:''; var v=parseFloat(wEl?wEl.value:'');
+  if(!d){ ui.pastErr='Pick a date.'; render(); return; }
+  if(d>todayStr()){ ui.pastErr='That date is in the future.'; render(); return; }
+  if(isNaN(v)){ ui.pastErr='Type the weight, e.g. 72.4'; render(); return; }
+  if(v<=0||v>600){ ui.pastErr='That does not look like a weight in kg.'; render(); return; }
+  upsert(d, Math.round(v*10)/10);
+  ui.pastOpen=false; ui.pastErr=''; ui.justLogged=true; render();
+  setTimeout(function(){ ui.justLogged=false; render(); }, 1600);
+}
 function logToday(){
   var v=parseFloat(document.getElementById('logInput').value);
   if(isNaN(v)){ ui.logErr='Type your weight, e.g. 72.4'; render(); return; }
@@ -382,6 +419,9 @@ document.getElementById('app').addEventListener('click', function(ev){
     case 'gotoStats': ui.view='stats'; render(); break;
     case 'gotoLog': ui.view='log'; render(); break;
     case 'logToday': logToday(); break;
+    case 'openPast': ui.pastOpen=true; ui.pastDate=addDays(todayStr(),-1); ui.pastErr=''; render(); break;
+    case 'closePast': ui.pastOpen=false; ui.pastErr=''; render(); break;
+    case 'logPast': logPast(); break;
     case 'editToday': ui.editingToday=true; ui.logErr=''; render(); break;
     case 'cancelToday': ui.editingToday=false; ui.logErr=''; render(); break;
     case 'toggleWeek': ui.openWeek=!ui.openWeek; render(); break;
@@ -405,7 +445,11 @@ document.getElementById('app').addEventListener('click', function(ev){
 document.getElementById('app').addEventListener('keydown', function(ev){
   if(ev.key!=='Enter') return;
   if(ev.target.id==='logInput'){ ev.preventDefault(); logToday(); }
+  else if(ev.target.id==='pastWeight'){ ev.preventDefault(); logPast(); }
   else if(ev.target.id==='editInput'){ ev.preventDefault(); var row=ev.target.closest('.hrow'); saveRow(ui.editing); }
+});
+document.getElementById('app').addEventListener('change', function(ev){
+  if(ev.target.id==='pastDate'){ ui.pastDate=ev.target.value; render(); }
 });
 
 /* ---- home-screen icon (generated, no external files) ---- */
