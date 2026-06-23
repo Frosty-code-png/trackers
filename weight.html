@@ -145,6 +145,31 @@
   .past-save{ font-family:var(--sans); font-size:14px; font-weight:700; color:#fff; background:var(--signal); border:none; border-radius:10px; padding:11px 14px; cursor:pointer; }
   .past-note{ font-size:12px; color:var(--ink-soft); margin-top:9px; }
 </style>
+<style>
+  .prog{ margin-top:14px; }
+  .prog-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 18px; margin-bottom:12px; text-align:center; }
+  .prog-label{ font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:11px; }
+  .prog-ba{ display:flex; align-items:baseline; justify-content:center; gap:8px; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .ba-from{ font-size:23px; font-weight:600; color:var(--ink-soft); }
+  .ba-arrow{ font-size:17px; color:var(--signal); }
+  .ba-to{ font-size:33px; font-weight:600; color:var(--ink); letter-spacing:-.02em; }
+  .ba-unit{ font-size:14px; color:var(--ink-soft); font-weight:600; }
+  .prog-net{ margin-top:11px; font-family:var(--mono); font-size:15px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .prog-net .net-arw{ color:var(--ink); }
+  .prog-net .net-sub{ color:var(--ink-soft); font-weight:400; }
+  .prog-tiles{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .prog-tile{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; text-align:center; }
+  .pt-label{ font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); }
+  .pt-num{ font-family:var(--mono); font-size:25px; font-weight:600; color:var(--ink); margin-top:8px; font-variant-numeric:tabular-nums; }
+  .pt-num span{ font-size:13px; color:var(--ink-soft); margin-left:3px; }
+  .pt-date{ font-size:11px; color:var(--ink-soft); margin-top:3px; }
+  .prog-note{ text-align:center; font-size:13px; color:var(--ink-soft); margin-top:16px; line-height:1.5; }
+  .prog-note b{ font-family:var(--mono); color:var(--ink); }
+  .mini3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:12px; }
+  .mini3 .stat{ padding:13px 6px; text-align:center; }
+  .mini3 .stat-num{ font-size:20px; margin-top:6px; }
+  .chart-svg .mark-hi, .chart-svg .mark-lo{ fill:#fff; stroke:var(--ink-soft); stroke-width:1.6; }
+</style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
@@ -217,7 +242,10 @@ function getStats(){
   var mMap={}; entries.forEach(function(e){var k=monthKey(e.date);(mMap[k]=mMap[k]||[]).push(e.weight);});
   var months=Object.keys(mMap).sort().reverse().map(function(k){return {key:k,avg:mean(mMap[k])};});
   months.forEach(function(m,i){var o=months[i+1];m.delta=o?m.avg-o.avg:null;});
-  return {latest:latest,earliest:earliest,avg7:avg7,weekDelta:weekDelta,avgM:avgM,monthDelta:monthDelta,net:net,weeks:weeks,months:months,asc:asc,count:entries.length,curM:curM};
+  var high=asc[0], low=asc[0];
+  asc.forEach(function(e){ if(e.weight>high.weight) high=e; if(e.weight<low.weight) low=e; });
+  var spanDays=Math.round((fromStr(latest.date).getTime()-fromStr(earliest.date).getTime())/86400000);
+  return {latest:latest,earliest:earliest,avg7:avg7,weekDelta:weekDelta,avgM:avgM,monthDelta:monthDelta,net:net,weeks:weeks,months:months,asc:asc,count:entries.length,curM:curM,high:high,low:low,spanDays:spanDays,range:high.weight-low.weight};
 }
 
 /* ---- render helpers ---- */
@@ -242,6 +270,10 @@ function chartSVG(asc){
   function Y(w){return pT+(1-(w-mn)/(mx-mn))*(H-pT-pB);}
   var pts=asc.map(function(e,i){return X(i).toFixed(1)+','+Y(e.weight).toFixed(1);}).join(' ');
   var last=asc[n-1];
+  var hiI=0,loI=0;
+  asc.forEach(function(e,i){ if(e.weight>asc[hiI].weight) hiI=i; if(e.weight<asc[loI].weight) loI=i; });
+  var marks='<circle class="mark-hi" cx="'+X(hiI).toFixed(1)+'" cy="'+Y(asc[hiI].weight).toFixed(1)+'" r="3"><title>High '+asc[hiI].weight.toFixed(1)+' kg</title></circle>'
+    +'<circle class="mark-lo" cx="'+X(loI).toFixed(1)+'" cy="'+Y(asc[loI].weight).toFixed(1)+'" r="3"><title>Low '+asc[loI].weight.toFixed(1)+' kg</title></circle>';
   var dots='';
   asc.forEach(function(e,i){dots+='<circle class="dot" cx="'+X(i).toFixed(1)+'" cy="'+Y(e.weight).toFixed(1)+'" r="2"><title>'+fmtShort(e.date)+' · '+e.weight.toFixed(1)+' kg</title></circle>';});
   var idxs=[0,Math.floor((n-1)/2),n-1].filter(function(v,i,a){return a.indexOf(v)===i;});
@@ -252,7 +284,7 @@ function chartSVG(asc){
     +'<line class="grid" x1="'+pL+'" y1="'+(H-pB)+'" x2="'+(W-pR)+'" y2="'+(H-pB)+'"/>'
     +'<text class="lbl" x="'+(pL-5)+'" y="'+(pT+4)+'" text-anchor="end">'+mx.toFixed(0)+'</text>'
     +'<text class="lbl" x="'+(pL-5)+'" y="'+(H-pB+4)+'" text-anchor="end">'+mn.toFixed(0)+'</text>'
-    +'<polyline class="line" points="'+pts+'"/>'+dots
+    +'<polyline class="line" points="'+pts+'"/>'+dots+marks
     +'<circle class="last" cx="'+X(n-1).toFixed(1)+'" cy="'+Y(last.weight).toFixed(1)+'" r="4"/>'+xl+'</svg>';
 }
 
@@ -281,6 +313,22 @@ function pastSection(){
     +(ex?'<div class="past-note">'+fmtFull(d)+' already has '+ex.weight.toFixed(1)+' kg, saving updates it.</div>':'<div class="past-note">Pick the day, type the weight, Save.</div>')
     +'<button class="link-btn" data-action="closePast" style="color:var(--ink-soft)">cancel</button></div></div>';
 }
+function progressBlock(s){
+  if(!s||s.count===0) return '';
+  if(s.count===1){
+    return '<div class="prog-note">First entry: <b>'+s.latest.weight.toFixed(1)+' kg</b> on '+fmtShort(s.latest.date)+'.<br>Log another day to see your before \u2192 after.</div>';
+  }
+  var net=s.net; var arw=Math.abs(net)<0.05?'\u2192':(net>0?'\u25b2':'\u25bc');
+  var dayTxt=s.spanDays>0?('over '+s.spanDays+' day'+(s.spanDays===1?'':'s')):'';
+  return '<div class="prog">'
+    +'<div class="prog-card"><div class="prog-label">Before \u2192 After</div>'
+      +'<div class="prog-ba"><span class="ba-from">'+s.earliest.weight.toFixed(1)+'</span><span class="ba-arrow">\u2192</span><span class="ba-to">'+s.latest.weight.toFixed(1)+'</span><span class="ba-unit">kg</span></div>'
+      +'<div class="prog-net"><span class="net-arw">'+arw+'</span> '+Math.abs(net).toFixed(1)+' kg'+(dayTxt?(' <span class="net-sub">\u00b7 '+dayTxt+'</span>'):'')+'</div></div>'
+    +'<div class="prog-tiles">'
+      +'<div class="prog-tile"><div class="pt-label">All-time low</div><div class="pt-num">'+s.low.weight.toFixed(1)+'<span>kg</span></div><div class="pt-date">'+fmtShort(s.low.date)+'</div></div>'
+      +'<div class="prog-tile"><div class="pt-label">All-time high</div><div class="pt-num">'+s.high.weight.toFixed(1)+'<span>kg</span></div><div class="pt-date">'+fmtShort(s.high.date)+'</div></div>'
+    +'</div></div>';
+}
 function logView(){
   var s=getStats();
   var today=entries.filter(function(e){return e.date===todayStr();})[0];
@@ -298,7 +346,7 @@ function logView(){
   return '<div class="logview"><div class="today-date">'+fmtFull(todayStr())+'</div>'
     +'<div class="log-card">'+inner+'</div>'
     +pastSection()
-    +((s&&s.avg7!=null)?'<div class="glance">7-day average · <b>'+s.avg7.toFixed(1)+' kg</b></div>':'')
+    +progressBlock(s)
     +(ui.justLogged?'<div class="toast">Saved ✓</div>':'')
     +(!isStandalone?'<div class="install-hint">Tip: tap your browser\'s Share button → <b>Add to Home Screen</b> to use this like an app.</div>':'')
     +'</div>';
@@ -309,25 +357,15 @@ function section(title,count,openKey,toggle,body){
 }
 function statsView(){
   var s=getStats();
-  if(!s) return '<div class="card"><div class="empty-state">No data yet. Log a weight first, then your averages, trends, and history show up here.</div></div>';
+  if(!s) return '<div class="card"><div class="empty-state">No data yet. Log a weight first, then your progress, trend, and history show up here.</div></div>';
   var head='<div class="stats-head">Latest <b>'+s.latest.weight.toFixed(1)+' kg</b> · '+fmtShort(s.latest.date)+' · '+s.count+(s.count===1?' entry':' entries')
     +(s.count>1?(' · net '+(s.net>0?'▲':(s.net<0?'▼':'→'))+' '+Math.abs(s.net).toFixed(1)+' kg'):'')+'</div>';
   var chart='<div class="card chart-card"><div class="chart-label">Trend</div>'+chartSVG(s.asc)+'</div>';
-  var statCards='<div class="stats">'
-    +'<div class="stat"><div class="stat-label">7-day average</div><div class="stat-sub">last 7 days</div>'
-      +(s.avg7!=null?'<div class="stat-num">'+s.avg7.toFixed(1)+'<span class="u">kg</span></div>':'<div class="stat-num muted">—</div>')
-      +'<div>'+deltaHTML(s.weekDelta,'vs prev week')+'</div></div>'
-    +'<div class="stat"><div class="stat-label">Monthly average</div><div class="stat-sub">'+fmtMonth(s.curM)+'</div>'
-      +(s.avgM!=null?'<div class="stat-num">'+s.avgM.toFixed(1)+'<span class="u">kg</span></div>':'<div class="stat-num muted">—</div>')
-      +'<div>'+deltaHTML(s.monthDelta,'vs last month')+'</div></div></div>';
-
-  var wv=ui.showAllWeek?s.weeks:s.weeks.slice(0,6);
-  var weekBody=wv.map(function(w){return '<div class="brow"><span class="brow-l">'+fmtWeek(w.key)+'</span><span class="brow-r"><span class="brow-w">'+w.avg.toFixed(1)+'</span><span class="brow-d">'+deltaCell(w.delta)+'</span></span></div>';}).join('')
-    +(s.weeks.length>6?'<button class="show-all" data-action="showAllWeek">'+(ui.showAllWeek?'Show fewer':'Show all '+s.weeks.length+' weeks')+'</button>':'');
-
-  var mv=ui.showAllMonth?s.months:s.months.slice(0,6);
-  var monthBody=mv.map(function(m){return '<div class="brow"><span class="brow-l">'+fmtMonth(m.key)+'</span><span class="brow-r"><span class="brow-w">'+m.avg.toFixed(1)+'</span><span class="brow-d">'+deltaCell(m.delta)+'</span></span></div>';}).join('')
-    +(s.months.length>6?'<button class="show-all" data-action="showAllMonth">'+(ui.showAllMonth?'Show fewer':'Show all '+s.months.length+' months')+'</button>':'');
+  var progress=progressBlock(s);
+  var extra='<div class="mini3">'
+    +'<div class="stat"><div class="stat-label">Days</div><div class="stat-num">'+(s.spanDays+1)+'</div></div>'
+    +'<div class="stat"><div class="stat-label">Entries</div><div class="stat-num">'+s.count+'</div></div>'
+    +'<div class="stat"><div class="stat-label">Range</div><div class="stat-num">'+s.range.toFixed(1)+'<span class="u">kg</span></div></div></div>';
 
   var hv=ui.showAllHist?entries:entries.slice(0,8);
   var histBody=hv.map(function(e){
@@ -346,9 +384,7 @@ function statsView(){
     +'<textarea class="ta" id="backupText" placeholder="Backup text appears here when you export — or paste a backup and tap Restore."></textarea>'
     +(ui.restoreMsg?'<div class="hint" style="margin-top:8px">'+ui.restoreMsg+'</div>':'');
 
-  return head+chart+statCards
-    +section('Change by week',s.weeks.length,'openWeek','toggleWeek',weekBody)
-    +section('Change by month',s.months.length,'openMonth','toggleMonth',monthBody)
+  return head+progress+chart+extra
     +section('History',entries.length,'openHist','toggleHist',histBody)
     +section('Backup &amp; restore',null,'openBackup','toggleBackup',backupBody);
 }
