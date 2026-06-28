@@ -253,6 +253,21 @@
   .daypick{display:flex; align-items:center; gap:8px; margin:-4px 0 20px;}
   .daypick input{flex:1; min-width:0; font-family:inherit; font-size:13px; font-weight:600; color:var(--ink); background:rgba(255,255,255,.6); border:1px solid var(--line); border-radius:12px; padding:10px 12px; color-scheme:light;}
   .today-btn{appearance:none; cursor:pointer; font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--water); border:none; border-radius:12px; padding:10px 15px;}
+  .edit-card{ background:var(--card); border:1px solid var(--line); border-radius:22px; padding:18px; box-shadow:var(--shadow); margin-bottom:13px; }
+  .edit-title{ font-family:"Bricolage Grotesque",sans-serif; font-size:18px; font-weight:800; letter-spacing:-.01em; margin-bottom:6px; }
+  .edit-sub{ font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); margin:16px 0 9px; }
+  .ehint{ font-size:12.5px; color:var(--ink-soft); line-height:1.5; }
+  .erow{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid var(--line); }
+  .erow:first-of-type{ border-top:none; }
+  .ename{ font-size:14px; font-weight:600; color:var(--ink); }
+  .eremove{ appearance:none; cursor:pointer; font-family:inherit; font-size:12.5px; font-weight:700; color:var(--gym); background:#FCEEEA; border:1px solid #F6D2C6; border-radius:9px; padding:7px 12px; }
+  .emoji-row{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:11px; }
+  .emoji{ appearance:none; cursor:pointer; font-size:18px; line-height:1; width:40px; height:40px; border-radius:11px; border:1.5px solid var(--line); background:#F3F6F7; display:grid; place-items:center; }
+  .emoji.on{ border-color:var(--water); background:#fff; box-shadow:0 0 0 2px color-mix(in srgb, var(--water) 30%, #fff); }
+  .add-row{ display:flex; gap:8px; }
+  .add-name{ flex:1; min-width:0; font-family:inherit; font-size:14px; font-weight:600; color:var(--ink); background:#F3F6F7; border:1.5px solid var(--line); border-radius:12px; padding:11px 13px; }
+  .add-name:focus{ outline:none; border-color:var(--water); }
+  .add-btn{ appearance:none; cursor:pointer; font-family:inherit; font-size:14px; font-weight:700; color:#fff; background:var(--water); border:none; border-radius:12px; padding:11px 18px; }
 </style>
 </head>
 <body>
@@ -381,26 +396,12 @@
       </div>
     </article>
 
-    <!-- Night routine -->
-    <article class="card" id="nightCard" style="--c:var(--night)">
-      <div class="badge">✓</div>
-      <div class="crow">
-        <div class="icon">🌙</div>
-        <div class="ctext">
-          <p class="ceyebrow">Wind down</p>
-          <h2 class="ctitle">Night routine</h2>
-        </div>
-        <div class="meta" id="nightMeta">Not yet</div>
-      </div>
-      <div class="pills">
-        <button class="pill" id="nightBtn" onclick="toggleNight()" style="flex:1"><span>Done for the night</span><span class="tick">✓</span></button>
-      </div>
-    </article>
+    <div id="customCards"></div>
 
     <p class="foot">
-      Saved automatically · resets each new day<br>
-      <button class="reset" onclick="resetToday()">Clear this day</button>
+      <button class="reset" id="editToggle" onclick="toggleEditRoutines()">Edit routines</button> · <button class="reset" onclick="resetToday()">Clear this day</button>
     </p>
+    <div id="habitEdit" class="hidden"></div>
     </div><!-- /todayView -->
 
     <div id="yearView" class="hidden">
@@ -432,7 +433,7 @@
         <p class="bd-title">Days completed this year</p>
         <div id="breakdown"></div>
       </div>
-      <p class="foot">A day counts as fully consistent when all five habits are done.</p>
+      <p class="foot">A day counts as fully consistent when all your routines are done.</p>
     </div>
   </div>
 
@@ -448,17 +449,18 @@
 
 <script>
   const KEY = "tracker:v1";
+  const HKEY = "tracker:habits:v1";
   const WATER_GOAL = 3000; // ml
   const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-  let state = { all:{}, date:"", viewDate:"", today:null };
+  let state = { all:{}, date:"", viewDate:"", today:null, customHabits:[], editing:false, newIcon:"📌", newRoutineName:"" };
 
   function dateStr(d){
     const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
     return `${y}-${m}-${day}`;
   }
-  function blankRec(){ return { brushAM:false, brushPM:false, gym:null, steps:false, water:0, waterLog:[], night:false }; }
+  function blankRec(){ return { brushAM:false, brushPM:false, gym:null, steps:false, water:0, waterLog:[], custom:{} }; }
   function ensure(rec){
     rec = rec || {};
     return {
@@ -467,21 +469,33 @@
       steps:!!rec.steps,
       water:Number(rec.water)||0,
       waterLog:Array.isArray(rec.waterLog)?rec.waterLog.map(Number):[],
-      night:!!rec.night
+      custom:(rec.custom&&typeof rec.custom==="object")?rec.custom:{}
     };
   }
+  const BUILTINS = [
+    {id:"brush", name:"Brush twice", icon:"🪥", color:"var(--brush)", done:function(r){return r.brushAM&&r.brushPM;}},
+    {id:"gym", name:"Gym / rest", icon:"💪", color:"var(--gym)", done:function(r){return !!r.gym;}},
+    {id:"steps", name:"10k steps", icon:"👟", color:"var(--steps)", done:function(r){return !!r.steps;}},
+    {id:"water", name:"Water 3 L", icon:"💧", color:"var(--water)", done:function(r){return r.water>=WATER_GOAL;}}
+  ];
+  const CUSTOM_COLORS = ["#5246D6","#0EA5E9","#7C3AED","#F59E0B","#EC4899","#14B8A6","#E2562F"];
+  function activeHabits(){
+    return BUILTINS.concat(state.customHabits.map(function(hb){
+      return {id:hb.id, name:hb.name, icon:hb.icon, color:hb.color||"#5246D6", custom:true,
+        done:(function(id){return function(r){return !!(r.custom&&r.custom[id]);};})(hb.id)};
+    }));
+  }
+  function totalHabits(){ return activeHabits().length; }
   function isComplete(r){
     if(!r) return false;
-    return r.brushAM && r.brushPM && (r.gym==="done"||r.gym==="rest") && r.steps && r.water>=WATER_GOAL && r.night;
+    var hs=activeHabits(); if(hs.length===0) return false;
+    return hs.every(function(h){ return h.done(r); });
   }
-  function doneCount(r){
-    let n=0;
-    if(r.brushAM&&r.brushPM) n++;
-    if(r.gym) n++;
-    if(r.steps) n++;
-    if(r.water>=WATER_GOAL) n++;
-    if(r.night) n++;
-    return n;
+  function doneCount(r){ var n=0; activeHabits().forEach(function(h){ if(h.done(r)) n++; }); return n; }
+  function heatLevel(r){
+    var tot=totalHabits(); if(tot===0) return 0;
+    var d=doneCount(r); if(d===0) return 0;
+    return Math.max(1, Math.min(5, Math.round(d/tot*5)));
   }
 
   async function load(){
@@ -490,6 +504,10 @@
       const res = await window.storage.get(KEY);
       if(res && res.value) data = JSON.parse(res.value);
     }catch(e){ /* first run or storage unavailable — start fresh */ }
+    try{
+      const rh = await window.storage.get(HKEY);
+      if(rh && rh.value){ const ch = JSON.parse(rh.value); if(Array.isArray(ch)) state.customHabits = ch; }
+    }catch(e){}
     state.all = (data && typeof data==="object") ? data : {};
     state.date = dateStr(new Date());
     state.viewDate = state.date;
@@ -499,6 +517,7 @@
   async function save(){
     try{ await window.storage.set(KEY, JSON.stringify(state.all)); }
     catch(e){ /* keep working in-memory if storage write fails */ }
+    try{ await window.storage.set(HKEY, JSON.stringify(state.customHabits)); }catch(e){}
   }
 
   /* ---- Actions ---- */
@@ -509,10 +528,6 @@
   }
   function setGym(val){
     state.today.gym = state.today.gym===val ? null : val;
-    commit();
-  }
-  function toggleNight(){
-    state.today.night = !state.today.night;
     commit();
   }
   function toggleSteps(){
@@ -580,21 +595,61 @@
     const y=String(new Date().getFullYear())+"-";
     return Object.keys(state.all).filter(k=>k.startsWith(y) && isComplete(ensure(state.all[k]))).length;
   }
-  function habitCounts(){
-    const y=String(new Date().getFullYear())+"-";
-    const c={brush:0,gym:0,steps:0,water:0,night:0};
-    Object.keys(state.all).forEach(k=>{
-      if(!k.startsWith(y)) return;
-      const r=ensure(state.all[k]);
-      if(r.brushAM&&r.brushPM) c.brush++;
-      if(r.gym) c.gym++;
-      if(r.steps) c.steps++;
-      if(r.water>=WATER_GOAL) c.water++;
-      if(r.night) c.night++;
-    });
-    return c;
+  function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+  function toggleCustom(id){
+    if(!state.today.custom) state.today.custom={};
+    state.today.custom[id] = !state.today.custom[id];
+    commit();
   }
-
+  function toggleEditRoutines(){ state.editing = !state.editing; render(); }
+  function setNewIcon(ic){ state.newIcon = ic; render(); }
+  function setNewName(v){ state.newRoutineName = v; }
+  function addRoutine(){
+    var nm = (state.newRoutineName||"").trim();
+    if(!nm){ var inp=document.getElementById("newRoutineName"); nm = inp?inp.value.trim():""; }
+    if(!nm) return;
+    var id = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+    var color = CUSTOM_COLORS[state.customHabits.length % CUSTOM_COLORS.length];
+    state.customHabits.push({id:id, name:nm, icon:state.newIcon||"📌", color:color});
+    state.newRoutineName = ""; state.newIcon = "📌";
+    save(); render();
+  }
+  function removeCustom(id){
+    state.customHabits = state.customHabits.filter(function(h){ return h.id!==id; });
+    save(); render();
+  }
+  function renderCustomCards(){
+    var el = document.getElementById("customCards"); if(!el) return;
+    var t = state.today;
+    el.innerHTML = state.customHabits.map(function(hb){
+      var on = !!(t.custom && t.custom[hb.id]);
+      return '<article class="card'+(on?' complete':'')+'" style="--c:'+hb.color+'">'
+        +'<div class="badge">✓</div>'
+        +'<div class="crow"><div class="icon">'+hb.icon+'</div>'
+        +'<div class="ctext"><p class="ceyebrow">Routine</p><h2 class="ctitle">'+escapeHtml(hb.name)+'</h2></div>'
+        +'<div class="meta">'+(on?"Done":"Not yet")+'</div></div>'
+        +'<div class="pills"><button class="pill'+(on?" on":"")+'" onclick="toggleCustom(\''+hb.id+'\')" style="flex:1"><span>'+(on?"Done":"Mark as done")+'</span><span class="tick">✓</span></button></div>'
+        +'</article>';
+    }).join("");
+  }
+  function renderEditPanel(){
+    var el = document.getElementById("habitEdit"); if(!el) return;
+    var et = document.getElementById("editToggle"); if(et) et.textContent = state.editing ? "Done editing" : "Edit routines";
+    el.classList.toggle("hidden", !state.editing);
+    if(!state.editing){ el.innerHTML=""; return; }
+    var EMOJI = ["📌","📚","🧘","💊","🚭","🛏️","🥗","☀️","🎯","🏃","🙏","📵","🌿","✍️","💧","🧹"];
+    var picker = EMOJI.map(function(ic){ return '<button class="emoji'+(state.newIcon===ic?" on":"")+'" onclick="setNewIcon(\''+ic+'\')">'+ic+'</button>'; }).join("");
+    var customList = state.customHabits.length
+      ? state.customHabits.map(function(hb){ return '<div class="erow"><span class="ename">'+hb.icon+' '+escapeHtml(hb.name)+'</span><button class="eremove" onclick="removeCustom(\''+hb.id+'\')">Remove</button></div>'; }).join("")
+      : '<div class="ehint">No custom routines yet — add one below.</div>';
+    el.innerHTML = '<div class="edit-card"><div class="edit-title">Your routines</div>'
+      +'<div class="ehint" style="margin-bottom:8px">Brush, Gym, Steps and Water are built in. Add your own:</div>'
+      + customList
+      +'<div class="edit-sub">Add a routine</div>'
+      +'<div class="emoji-row">'+picker+'</div>'
+      +'<div class="add-row"><input id="newRoutineName" class="add-name" value="'+escapeHtml(state.newRoutineName||"")+'" placeholder="e.g. Read 20 min" oninput="setNewName(this.value)" onkeydown="if(event.key===\'Enter\'){addRoutine();}"><button class="add-btn" onclick="addRoutine()">Add</button></div>'
+      +'</div>';
+  }
   function setView(v){
     const today = v!=="year";
     document.getElementById("todayView").classList.toggle("hidden", !today);
@@ -635,9 +690,11 @@
         else if(cur>today){ cell.className="hcell future"; }
         else {
           const key=dateStr(cur);
-          const lvl=state.all[key]?doneCount(ensure(state.all[key])):0;
+          const r0=ensure(state.all[key]);
+          const lvl=state.all[key]?heatLevel(r0):0;
+          const dc=state.all[key]?doneCount(r0):0;
           cell.className="hcell l"+lvl;
-          cell.title=MONTHS[cur.getMonth()]+" "+cur.getDate()+" — "+lvl+"/5 done";
+          cell.title=MONTHS[cur.getMonth()]+" "+cur.getDate()+" — "+dc+"/"+totalHabits()+" done";
         }
         col.appendChild(cell);
         cur.setDate(cur.getDate()+1);
@@ -646,19 +703,20 @@
     }
   }
   function renderBreakdown(year){
-    const c=habitCounts();
+    const y=String(year)+"-";
     const jan1=new Date(year,0,1); const today=new Date(); today.setHours(0,0,0,0);
     const elapsed=Math.max(1, Math.floor((today-jan1)/86400000)+1);
-    const rows=[
-      {icon:"🪥", name:"Brush twice", n:c.brush, col:"var(--brush)"},
-      {icon:"💪", name:"Gym / rest", n:c.gym, col:"var(--gym)"},
-      {icon:"👟", name:"10k steps", n:c.steps, col:"var(--steps)"},
-      {icon:"💧", name:"Water 3 L", n:c.water, col:"var(--water)"},
-      {icon:"🌙", name:"Night routine", n:c.night, col:"var(--night)"}
-    ];
-    document.getElementById("breakdown").innerHTML = rows.map(function(r){
-      const pct=Math.min(100, Math.round(r.n/elapsed*100));
-      return '<div class="brow"><span class="bicon">'+r.icon+'</span><span class="bname">'+r.name+'</span><span class="bbar"><span class="bfill" style="width:'+pct+'%;background:'+r.col+'"></span></span><span class="bcount">'+r.n+'</span></div>';
+    const hs=activeHabits();
+    const counts=hs.map(function(){return 0;});
+    Object.keys(state.all).forEach(function(k){
+      if(k.indexOf(y)!==0) return;
+      const r=ensure(state.all[k]);
+      hs.forEach(function(hh,i){ if(hh.done(r)) counts[i]++; });
+    });
+    document.getElementById("breakdown").innerHTML = hs.map(function(hh,i){
+      const n=counts[i];
+      const pct=Math.min(100, Math.round(n/elapsed*100));
+      return '<div class="brow"><span class="bicon">'+hh.icon+'</span><span class="bname">'+escapeHtml(hh.name)+'</span><span class="bbar"><span class="bfill" style="width:'+pct+'%;background:'+hh.color+'"></span></span><span class="bcount">'+n+'</span></div>';
     }).join("");
   }
 
@@ -680,7 +738,6 @@
     setComplete("gymCard", !!t.gym);
     setComplete("stepsCard", t.steps);
     setComplete("waterCard", t.water>=WATER_GOAL);
-    setComplete("nightCard", t.night);
 
     // Brush
     toggleBtn("brushAM", t.brushAM);
@@ -695,10 +752,6 @@
     // Steps
     toggleBtn("stepsBtn", t.steps);
     document.getElementById("stepsMeta").textContent = t.steps ? "Done" : "Not yet";
-
-    // Night
-    toggleBtn("nightBtn", t.night);
-    document.getElementById("nightMeta").textContent = t.night ? "Done" : "Not yet";
 
     // Water
     const L = (t.water/1000).toFixed(2);
@@ -723,22 +776,16 @@
 
     // Header dots
     const dotsEl = document.getElementById("dots");
-    const items = [
-      {on:t.brushAM&&t.brushPM, c:getComputedStyle(document.documentElement).getPropertyValue('--brush')},
-      {on:!!t.gym, c:getComputedStyle(document.documentElement).getPropertyValue('--gym')},
-      {on:t.steps, c:getComputedStyle(document.documentElement).getPropertyValue('--steps')},
-      {on:t.water>=WATER_GOAL, c:getComputedStyle(document.documentElement).getPropertyValue('--water')},
-      {on:t.night, c:getComputedStyle(document.documentElement).getPropertyValue('--night')}
-    ];
     dotsEl.innerHTML = "";
-    items.forEach(it=>{
+    activeHabits().forEach(function(h){
+      const on=h.done(t);
       const d=document.createElement("div");
-      d.className="dot"+(it.on?" on":"");
-      if(it.on) d.style.background=it.c.trim();
+      d.className="dot"+(on?" on":"");
+      if(on){ var col=h.color; if(col.indexOf("var(")===0){ col=getComputedStyle(document.documentElement).getPropertyValue(col.slice(4,-1)).trim(); } d.style.background=col; }
       dotsEl.appendChild(d);
     });
     const done = doneCount(t);
-    document.getElementById("count").innerHTML = `<b>${done}</b> of 5 done`;
+    document.getElementById("count").innerHTML = `<b>${done}</b> of ${totalHabits()} done`;
 
     // Streak
     const s = streakCount();
@@ -746,6 +793,8 @@
     if(isToday && s>0){ sEl.classList.remove("hidden"); document.getElementById("streakNum").textContent = `${s} day${s>1?"s":""}`; }
     else sEl.classList.add("hidden");
 
+    renderCustomCards();
+    renderEditPanel();
     renderWeek();
   }
 
@@ -766,7 +815,7 @@
       const initials=["S","M","T","W","T","F","S"][d.getDay()];
       const ring=document.createElement("div");
       ring.className="ring";
-      const frac=done/5;
+      const frac=totalHabits()>0?done/totalHabits():0;
       if(frac>0){
         const col = complete ? "var(--brush)" : "var(--water)";
         ring.style.background = `conic-gradient(${col} ${frac*360}deg, #E4ECED 0deg)`;
