@@ -137,6 +137,14 @@
   .pk{ font-size:12px; color:var(--muted); font-weight:600; }
   .pv{ font-family:var(--mono); font-size:14px; color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; text-align:right; }
   .pmuted{ color:var(--faint); font-weight:400; font-family:var(--mono); }
+  .bk{ padding:16px; }
+  .bk-title{ font-weight:800; font-size:15px; margin-bottom:6px; }
+  .bk-note{ font-size:12.5px; color:var(--muted); line-height:1.5; margin-bottom:10px; }
+  .bk-btns{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .bkbtn{ appearance:none; cursor:pointer; font-family:inherit; font-size:13px; font-weight:700; padding:9px 14px; border-radius:11px; border:1px solid var(--line); background:var(--surface2); color:var(--text); }
+  .bkbtn.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .bk-ta{ width:100%; min-height:88px; resize:vertical; font-family:var(--mono); font-size:11.5px; color:var(--muted); background:var(--surface2); border:1px solid var(--line); border-radius:11px; padding:10px; }
+  .bk-msg{ font-size:12.5px; color:var(--text); font-weight:600; margin-top:8px; }
   .gd{ font-family:var(--mono); }
 </style>
 </head>
@@ -184,7 +192,7 @@
 
   /* ====== state ====== */
   var workouts=[], units={}, exercises=DEFAULT_EXERCISES.slice();
-  var tab='log', logDate=todayStr(), draft={}, editMode=false, newGroup='Chest', newName='', addError='', confirmReset=false, loaded=false;
+  var tab='log', logDate=todayStr(), draft={}, editMode=false, newGroup='Chest', newName='', addError='', confirmReset=false, loaded=false, backupMsg='';
   var saveTimer=null;
 
   function groupMap(){var m={};exercises.forEach(function(e){m[e.name]=e.group;});return m;}
@@ -218,13 +226,13 @@
     var now=dateToMs(todayStr()),out={};
     exercises.forEach(function(item){
       var ex=item.name,u=units[ex]||'kg',entries=[];
-      workouts.forEach(function(w){var e=w.entries.filter(function(en){return en.exercise===ex;})[0];if(e)entries.push({t:dateToMs(w.date),weight:convert(e.weight,e.unit||'kg',u),date:w.date});});
+      workouts.forEach(function(w){var e=w.entries.filter(function(en){return en.exercise===ex;})[0];if(e)entries.push({t:dateToMs(w.date),weight:convert(e.weight,e.unit||'kg',u),date:w.date,reps:(e.reps!=null?e.reps:null)});});
       entries.sort(function(a,b){return a.t-b.t;});
       function avg(arr){return arr.length?arr.reduce(function(s,e){return s+e.weight;},0)/arr.length:null;}
       var tw=avg(entries.filter(function(e){return e.t>=now-6*DAY;}));
       var lw=avg(entries.filter(function(e){return e.t>=now-13*DAY&&e.t<=now-7*DAY;}));
       var n2=entries.length;
-      var hi=entries[0]||null; entries.forEach(function(e){ if(hi&&e.weight>hi.weight) hi=e; });
+      var hi=entries[0]||null; entries.forEach(function(e){ if(hi&&(e.weight>hi.weight||(e.weight===hi.weight&&(e.reps||0)>(hi.reps||0)))) hi=e; });
       out[ex]={unit:u,count:n2,
         first:entries[0]||null,
         last:n2?entries[n2-1]:null,
@@ -312,6 +320,7 @@
     var arw=flat?'→':up?'▲':'▼';
     return '<span class="gd" style="color:'+col+'">'+arw+' '+fmt(Math.abs(v))+(unit?(' '+unit):'')+'</span>';
   }
+  function xr(e){ return (e&&e.reps!=null)?'<span class="pmuted"> ×'+e.reps+'</span>':''; }
   function renderProgress(){
     var stats=computeStats(),gm=groupMap(),now=dateToMs(todayStr());
     var weekCount=workouts.filter(function(w){return dateToMs(w.date)>=now-6*DAY;}).length;
@@ -325,24 +334,33 @@
     }
     trained.forEach(function(ex){
       var s=stats[ex];
-      var startNow=(s.count>=2)?(fmt(s.first.weight)+' → '+fmt(s.last.weight)+' '+s.unit+'  '+gdelta(s.net,''))
-                              :(fmt(s.last.weight)+' '+s.unit+' <span class="pmuted">· first session</span>');
-      var sinceLast=(s.lastDelta!=null)?gdelta(s.lastDelta,s.unit):'<span class="pmuted">first session</span>';
+      var startNow=(s.count>=2)?(fmt(s.first.weight)+xr(s.first)+' → '+fmt(s.last.weight)+xr(s.last)+' '+s.unit+'  '+gdelta(s.net,''))
+                              :(fmt(s.last.weight)+xr(s.last)+' '+s.unit+' <span class="pmuted">· first session</span>');
+      var repChg=(s.prev&&s.last&&s.prev.reps!=null&&s.last.reps!=null&&s.prev.reps!==s.last.reps)?('<span class="pmuted"> · '+s.prev.reps+'→'+s.last.reps+' reps</span>'):'';
+      var sinceLast=(s.lastDelta!=null)?(gdelta(s.lastDelta,s.unit)+repChg):'<span class="pmuted">first session</span>';
       h+='<div class="card pcard"><div class="pcard-top"><div style="min-width:0">'
         +'<div class="pcard-name">'+esc(ex)+'</div><div class="pcard-grp">'+esc((gm[ex]||'').toUpperCase())+'</div></div>'
         +sparkline(s.trend)+'</div>'
         +'<div class="pcard-rows">'
         +'<div class="prow"><span class="pk">Start → Now</span><span class="pv">'+startNow+'</span></div>'
         +'<div class="prow"><span class="pk">Since last session</span><span class="pv">'+sinceLast+'</span></div>'
-        +'<div class="prow"><span class="pk">All-time high</span><span class="pv">'+fmt(s.high.weight)+' '+s.unit+' <span class="pmuted">'+prettyDate(s.high.date)+'</span></span></div>'
+        +'<div class="prow"><span class="pk">All-time high</span><span class="pv">'+fmt(s.high.weight)+xr(s.high)+' '+s.unit+' <span class="pmuted">'+prettyDate(s.high.date)+'</span></span></div>'
         +'</div></div>';
     });
     return h;
   }
 
+  function bkCardHTML(){
+    return '<div class="card bk"><div class="bk-title">Backup</div>'
+      +'<div class="bk-note">Everything saves in this browser automatically. Keep a spare copy now and then — restoring <b>merges</b>, it never erases what\'s here.</div>'
+      +'<div class="bk-btns"><button class="bkbtn" data-action="bkExport">Download</button><button class="bkbtn" data-action="bkCopy">Copy</button><button class="bkbtn primary" data-action="bkRestore">Restore</button></div>'
+      +'<textarea id="bkText" class="bk-ta" placeholder="Backup appears here on export — or paste one and tap Restore."></textarea>'
+      +(backupMsg?('<div class="bk-msg">'+esc(backupMsg)+'</div>'):'')
+      +'</div>';
+  }
   function renderHistory(){
     if(workouts.length===0){
-      return '<div class="card empty">'+svg('clip')+'<div class="t">No sessions logged.</div><div class="s">Head to Log to record your first workout.</div></div>';
+      return '<div class="card empty">'+svg('clip')+'<div class="t">No sessions logged.</div><div class="s">Head to Log to record your first workout — or restore a backup below.</div></div>'+bkCardHTML();
     }
     var sorted=workouts.slice().sort(function(a,b){return dateToMs(b.date)-dateToMs(a.date);});
     var h='';
@@ -351,6 +369,7 @@
         +'<div class="hcard-acts"><button class="iconbtn" data-action="editSession" data-id="'+w.id+'" aria-label="Edit">'+svg('pencil')+'</button><button class="iconbtn del" data-action="delSession" data-id="'+w.id+'" aria-label="Delete">'+svg('trash')+'</button></div></div>'
         +'<div class="hentries">'+w.entries.map(function(e){return '<div class="hentry"><span class="ex">'+esc(e.exercise)+'</span><span class="val">'+fmt(e.weight)+' '+e.unit+(e.reps?('<span class="r"> × '+e.reps+'</span>'):'')+'</span></div>';}).join('')+'</div></div>';
     });
+    h+=bkCardHTML();
     h+='<div class="resetwrap">'+(confirmReset
       ?('<div class="card confirm"><div class="q">Delete every logged session? This can\'t be undone.</div><div class="btns"><button class="keep" data-action="cancelReset">Keep my data</button><button class="delall" data-action="doReset">Delete all</button></div></div>')
       :('<button class="resetbtn" data-action="askReset">Reset all data</button>'))+'</div>';
@@ -367,6 +386,32 @@
   /* ====== actions ====== */
   function changeDate(d){flushSave();logDate=d;draft=buildDraft(workouts.filter(function(w){return w.date===d;})[0]);render();}
 
+  function bkPayload(){return JSON.stringify({app:'ironlog',workouts:workouts,exercises:exercises,units:units},null,2);}
+  function bkExport(){var json=bkPayload();var ta=document.getElementById('bkText');if(ta)ta.value=json;try{var b=new Blob([json],{type:'application/json'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download='ironlog-backup-'+todayStr()+'.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){}}
+  function bkCopy(){var json=bkPayload();try{navigator.clipboard.writeText(json);backupMsg='Copied to clipboard.';}catch(e){backupMsg='Couldn\'t copy — select the text above.';}render();var ta=document.getElementById('bkText');if(ta)ta.value=json;}
+  function bkRestore(){
+    var ta=document.getElementById('bkText');var txt=ta?ta.value:'';
+    var p;try{p=JSON.parse(txt);}catch(e){backupMsg='That isn\'t valid backup text.';render();return;}
+    var ws=Array.isArray(p)?p:(p&&Array.isArray(p.workouts)?p.workouts:null);
+    if(!ws){backupMsg='No workouts found in that backup.';render();return;}
+    var byDate={};workouts.forEach(function(w){byDate[w.date]=true;});
+    var added=0;
+    ws.forEach(function(w){
+      if(!w||typeof w.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(w.date)||!Array.isArray(w.entries))return;
+      if(byDate[w.date])return;
+      workouts.push({id:w.id||uid(),date:w.date,entries:w.entries.filter(function(en){return en&&en.exercise&&typeof en.weight==='number';})});
+      byDate[w.date]=true;added++;
+    });
+    if(p&&Array.isArray(p.exercises)){
+      var have={};exercises.forEach(function(e){have[e.name.toLowerCase()]=true;});
+      p.exercises.forEach(function(e){if(e&&e.name&&!have[String(e.name).toLowerCase()]){exercises.push({name:e.name,group:e.group||'Chest'});have[String(e.name).toLowerCase()]=true;}});
+      lset('exercises',exercises);
+    }
+    if(p&&p.units&&typeof p.units==='object'){Object.keys(p.units).forEach(function(k){if(!units[k])units[k]=p.units[k];});lset('units',units);}
+    lset('workouts',workouts);
+    backupMsg=added?('Restored — '+added+' session'+(added!==1?'s':'')+' added.'):'Nothing new to add — every date in that backup is already here.';
+    render();
+  }
   function onClick(e){
     var b=e.target.closest('[data-action]');if(!b)return;
     var a=b.getAttribute('data-action');
@@ -383,6 +428,9 @@
     }
     else if(a==='delSession'){var id=b.getAttribute('data-id');workouts=workouts.filter(function(w){return w.id!==id;});lset('workouts',workouts);render();}
     else if(a==='editSession'){flushSave();var sid=b.getAttribute('data-id');var s=workouts.filter(function(w){return w.id===sid;})[0];if(s){logDate=s.date;draft=buildDraft(s);editMode=false;tab='log';render();window.scrollTo(0,0);}}
+    else if(a==='bkExport'){bkExport();}
+    else if(a==='bkCopy'){bkCopy();}
+    else if(a==='bkRestore'){bkRestore();}
     else if(a==='askReset'){confirmReset=true;render();}
     else if(a==='cancelReset'){confirmReset=false;render();}
     else if(a==='doReset'){workouts=[];draft={};confirmReset=false;lset('workouts',workouts);render();}

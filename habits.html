@@ -268,6 +268,13 @@
   .add-name{ flex:1; min-width:0; font-family:inherit; font-size:14px; font-weight:600; color:var(--ink); background:#F3F6F7; border:1.5px solid var(--line); border-radius:12px; padding:11px 13px; }
   .add-name:focus{ outline:none; border-color:var(--water); }
   .add-btn{ appearance:none; cursor:pointer; font-family:inherit; font-size:14px; font-weight:700; color:#fff; background:var(--water); border:none; border-radius:12px; padding:11px 18px; }
+  .eoff{ opacity:.45; }
+  .erestore{ appearance:none; cursor:pointer; font-family:inherit; font-size:12.5px; font-weight:700; color:var(--brush); background:#E9F7F1; border:1px solid #C4E9DA; border-radius:9px; padding:7px 12px; }
+  .bk-btns{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .bkbtn{ appearance:none; cursor:pointer; font-family:inherit; font-size:13px; font-weight:700; padding:9px 14px; border-radius:11px; border:1.5px solid var(--line); background:#F3F6F7; color:var(--ink); }
+  .bkbtn.primary{ background:var(--water); border-color:var(--water); color:#fff; }
+  .bk-ta{ width:100%; min-height:88px; resize:vertical; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; color:var(--ink-soft); background:#F3F6F7; border:1.5px solid var(--line); border-radius:11px; padding:10px; }
+  .bk-msg{ font-size:12.5px; color:var(--ink); font-weight:600; margin-top:8px; }
 </style>
 </head>
 <body>
@@ -450,11 +457,12 @@
 <script>
   const KEY = "tracker:v1";
   const HKEY = "tracker:habits:v1";
+  const XKEY = "tracker:hidden:v1";
   const WATER_GOAL = 3000; // ml
   const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-  let state = { all:{}, date:"", viewDate:"", today:null, customHabits:[], editing:false, newIcon:"📌", newRoutineName:"" };
+  let state = { all:{}, date:"", viewDate:"", today:null, customHabits:[], editing:false, newIcon:"📌", newRoutineName:"", hiddenBuiltins:[], backupMsg:"" };
 
   function dateStr(d){
     const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
@@ -480,7 +488,7 @@
   ];
   const CUSTOM_COLORS = ["#5246D6","#0EA5E9","#7C3AED","#F59E0B","#EC4899","#14B8A6","#E2562F"];
   function activeHabits(){
-    return BUILTINS.concat(state.customHabits.map(function(hb){
+    return BUILTINS.filter(function(b){ return state.hiddenBuiltins.indexOf(b.id)===-1; }).concat(state.customHabits.map(function(hb){
       return {id:hb.id, name:hb.name, icon:hb.icon, color:hb.color||"#5246D6", custom:true,
         done:(function(id){return function(r){return !!(r.custom&&r.custom[id]);};})(hb.id)};
     }));
@@ -508,6 +516,10 @@
       const rh = await window.storage.get(HKEY);
       if(rh && rh.value){ const ch = JSON.parse(rh.value); if(Array.isArray(ch)) state.customHabits = ch; }
     }catch(e){}
+    try{
+      const rx = await window.storage.get(XKEY);
+      if(rx && rx.value){ const hx = JSON.parse(rx.value); if(Array.isArray(hx)) state.hiddenBuiltins = hx; }
+    }catch(e){}
     state.all = (data && typeof data==="object") ? data : {};
     state.date = dateStr(new Date());
     state.viewDate = state.date;
@@ -518,6 +530,7 @@
     try{ await window.storage.set(KEY, JSON.stringify(state.all)); }
     catch(e){ /* keep working in-memory if storage write fails */ }
     try{ await window.storage.set(HKEY, JSON.stringify(state.customHabits)); }catch(e){}
+    try{ await window.storage.set(XKEY, JSON.stringify(state.hiddenBuiltins)); }catch(e){}
   }
 
   /* ---- Actions ---- */
@@ -618,6 +631,48 @@
     state.customHabits = state.customHabits.filter(function(h){ return h.id!==id; });
     save(); render();
   }
+  function hideBuiltin(id){
+    if(state.hiddenBuiltins.indexOf(id)===-1) state.hiddenBuiltins.push(id);
+    save(); render();
+  }
+  function restoreBuiltin(id){
+    state.hiddenBuiltins = state.hiddenBuiltins.filter(function(x){ return x!==id; });
+    save(); render();
+  }
+  function habitsPayload(){ return JSON.stringify({app:"habits", days:state.all, custom:state.customHabits, hidden:state.hiddenBuiltins}, null, 2); }
+  function habitsExport(){
+    var json=habitsPayload();
+    var ta=document.getElementById("habitBk"); if(ta) ta.value=json;
+    try{ var b=new Blob([json],{type:"application/json"}); var u=URL.createObjectURL(b); var a=document.createElement("a"); a.href=u; a.download="habits-backup-"+state.date+".json"; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u); }catch(e){}
+  }
+  function habitsCopy(){
+    var json=habitsPayload();
+    try{ navigator.clipboard.writeText(json); state.backupMsg="Copied to clipboard."; }
+    catch(e){ state.backupMsg="Couldn\'t copy — select the text above."; }
+    render();
+    var ta=document.getElementById("habitBk"); if(ta) ta.value=json;
+  }
+  function habitsRestore(){
+    var ta=document.getElementById("habitBk"); var txt=ta?ta.value:"";
+    var p; try{ p=JSON.parse(txt); }catch(e){ state.backupMsg="That isn\'t valid backup text."; render(); return; }
+    var days=(p&&p.days&&typeof p.days==="object")?p.days:((p&&typeof p==="object"&&!Array.isArray(p))?p:null);
+    if(!days){ state.backupMsg="No days found in that backup."; render(); return; }
+    var added=0;
+    Object.keys(days).forEach(function(k){
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(k)) return;
+      if(state.all[k]) return;
+      state.all[k]=ensure(days[k]); added++;
+    });
+    if(p&&Array.isArray(p.custom)){
+      var have={}; state.customHabits.forEach(function(c){ have[c.id]=true; });
+      p.custom.forEach(function(c){ if(c&&c.id&&c.name&&!have[c.id]){ state.customHabits.push(c); have[c.id]=true; } });
+    }
+    if(p&&Array.isArray(p.hidden)&&state.hiddenBuiltins.length===0) state.hiddenBuiltins=p.hidden.slice();
+    state.today = state.all[state.viewDate] = ensure(state.all[state.viewDate]);
+    save();
+    state.backupMsg = added?("Restored — "+added+" day"+(added!==1?"s":"")+" added."):"Nothing new to add — every day in that backup is already here.";
+    render();
+  }
   function renderCustomCards(){
     var el = document.getElementById("customCards"); if(!el) return;
     var t = state.today;
@@ -642,12 +697,25 @@
     var customList = state.customHabits.length
       ? state.customHabits.map(function(hb){ return '<div class="erow"><span class="ename">'+hb.icon+' '+escapeHtml(hb.name)+'</span><button class="eremove" onclick="removeCustom(\''+hb.id+'\')">Remove</button></div>'; }).join("")
       : '<div class="ehint">No custom routines yet — add one below.</div>';
+    var builtinRows = BUILTINS.map(function(b){
+      var hidden = state.hiddenBuiltins.indexOf(b.id)>=0;
+      return '<div class="erow"><span class="ename'+(hidden?" eoff":"")+'">'+b.icon+' '+escapeHtml(b.name)+'</span>'
+        +(hidden?'<button class="erestore" onclick="restoreBuiltin(\''+b.id+'\')">Restore</button>'
+                :'<button class="eremove" onclick="hideBuiltin(\''+b.id+'\')">Remove</button>')+'</div>';
+    }).join("");
     el.innerHTML = '<div class="edit-card"><div class="edit-title">Your routines</div>'
-      +'<div class="ehint" style="margin-bottom:8px">Brush, Gym, Steps and Water are built in. Add your own:</div>'
+      +'<div class="edit-sub" style="margin-top:2px">Built-in</div>'
+      + builtinRows
+      +'<div class="edit-sub">Your own</div>'
       + customList
       +'<div class="edit-sub">Add a routine</div>'
       +'<div class="emoji-row">'+picker+'</div>'
       +'<div class="add-row"><input id="newRoutineName" class="add-name" value="'+escapeHtml(state.newRoutineName||"")+'" placeholder="e.g. Read 20 min" oninput="setNewName(this.value)" onkeydown="if(event.key===\'Enter\'){addRoutine();}"><button class="add-btn" onclick="addRoutine()">Add</button></div>'
+      +'<div class="edit-sub">Backup</div>'
+      +'<div class="ehint" style="margin-bottom:9px">Everything saves in this browser automatically. Keep a spare copy — restoring <b>merges</b>, it never erases what\'s here.</div>'
+      +'<div class="bk-btns"><button class="bkbtn" onclick="habitsExport()">Download</button><button class="bkbtn" onclick="habitsCopy()">Copy</button><button class="bkbtn primary" onclick="habitsRestore()">Restore</button></div>'
+      +'<textarea id="habitBk" class="bk-ta" placeholder="Backup appears here on export — or paste one and tap Restore."></textarea>'
+      +(state.backupMsg?('<div class="bk-msg">'+escapeHtml(state.backupMsg)+'</div>'):'')
       +'</div>';
   }
   function setView(v){
@@ -738,6 +806,9 @@
     setComplete("gymCard", !!t.gym);
     setComplete("stepsCard", t.steps);
     setComplete("waterCard", t.water>=WATER_GOAL);
+    [["brush","brushCard"],["gym","gymCard"],["steps","stepsCard"],["water","waterCard"]].forEach(function(p){
+      var el=document.getElementById(p[1]); if(el) el.style.display = state.hiddenBuiltins.indexOf(p[0])>=0 ? "none" : "";
+    });
 
     // Brush
     toggleBtn("brushAM", t.brushAM);
