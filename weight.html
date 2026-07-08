@@ -115,6 +115,8 @@
   .show-all { margin-top:10px; font-size:12.5px; color:var(--signal); background:none; border:none; cursor:pointer; padding:4px 0; font-weight:600; font-family:var(--sans); }
   .show-all:focus-visible { outline:2px solid var(--signal); outline-offset:2px; border-radius:4px; }
 
+  .wk-delta { margin-left:auto; font-size:13px; font-weight:600; color:var(--ink-soft); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .wk-delta.muted { color:var(--ink-soft); opacity:.65; font-weight:400; }
   .backup-note { font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:12px; }
   .backup-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
   .btn { font-family:var(--sans); font-size:13px; font-weight:600; border-radius:10px; padding:9px 13px; border:1px solid transparent; cursor:pointer; }
@@ -203,6 +205,16 @@ function fmtWeek(m){var a=fromStr(m),b=fromStr(addDays(m,6));return MON[a.getMon
 function mean(a){return a.length? a.reduce(function(x,y){return x+y;},0)/a.length : null;}
 function rangeAvg(es,start,end){return mean(es.filter(function(e){return e.date>=start&&e.date<=end;}).map(function(e){return e.weight;}));}
 function sortDesc(a){return a.slice().sort(function(x,y){return x.date<y.date?1:(x.date>y.date?-1:0);});}
+function weekStartOf(s){ return addDays(s, -fromStr(s).getDay()); } /* Sunday-start weeks */
+function completeWeeks(){
+  var byWeek={};
+  entries.forEach(function(e){ var wk=weekStartOf(e.date); (byWeek[wk]=byWeek[wk]||[]).push(e.weight); });
+  var keys=Object.keys(byWeek).sort();
+  var out=[];
+  keys.forEach(function(k){ if(byWeek[k].length===7) out.push({week:k, avg:mean(byWeek[k])}); });
+  for(var i=0;i<out.length;i++){ out[i].delta = i>0 ? out[i].avg-out[i-1].avg : null; }
+  return out; /* ascending by week */
+}
 
 /* ---- storage ---- */
 var storageWorks=true;
@@ -367,6 +379,25 @@ function statsView(){
     +'<div class="stat"><div class="stat-label">Entries</div><div class="stat-num">'+s.count+'</div></div>'
     +'<div class="stat"><div class="stat-label">Range</div><div class="stat-num">'+s.range.toFixed(1)+'<span class="u">kg</span></div></div></div>';
 
+  var wks=completeWeeks();
+  var thisWk=weekStartOf(todayStr());
+  var thisCount=entries.filter(function(e){return weekStartOf(e.date)===thisWk;}).length;
+  var wkNote=(thisCount>0&&thisCount<7)?'<div class="hint" style="margin-top:8px">This week: '+thisCount+'/7 logged — the average appears once all 7 days are in.</div>':'';
+  var weekBody;
+  if(wks.length===0){
+    weekBody='<div class="hint">A week shows here once every day of it is logged (Sun–Sat), so one odd day can\'t skew the picture.</div>'+wkNote;
+  } else {
+    var wlist=wks.slice().reverse();
+    var wshown=ui.showAllWeek?wlist:wlist.slice(0,8);
+    weekBody=wshown.map(function(w){
+      var d=w.delta;
+      var dHtml=(d==null)?'<span class="wk-delta muted">first full week</span>'
+        :'<span class="wk-delta">'+(Math.abs(d)<0.05?'→':(d>0?'▲':'▼'))+' '+Math.abs(d).toFixed(1)+' kg</span>';
+      return '<div class="hrow"><span class="hrow-date">'+fmtWeek(w.week)+'</span><span class="hrow-w">'+w.avg.toFixed(1)+' kg</span>'+dHtml+'</div>';
+    }).join('')
+    +(wlist.length>8?'<button class="show-all" data-action="showAllWeek">'+(ui.showAllWeek?'Show fewer':'Show all '+wlist.length+' weeks')+'</button>':'')
+    +wkNote;
+  }
   var hv=ui.showAllHist?entries:entries.slice(0,8);
   var histBody=hv.map(function(e){
     if(ui.editing===e.date){
@@ -385,6 +416,7 @@ function statsView(){
     +(ui.restoreMsg?'<div class="hint" style="margin-top:8px">'+ui.restoreMsg+'</div>':'');
 
   return head+progress+chart+extra
+    +section('Weekly averages',(wks.length||null),'openWeek','toggleWeek',weekBody)
     +section('History',entries.length,'openHist','toggleHist',histBody)
     +section('Backup &amp; restore',null,'openBackup','toggleBackup',backupBody);
 }
